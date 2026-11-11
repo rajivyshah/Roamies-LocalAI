@@ -33,6 +33,8 @@ import { QUESTIONS, openNote, answerTurn, wantsSkip, endsChat, splitTurn, plain,
 import { SpeechText, CueFilter, VOICE_CUES, endsWithQuestion } from './speech.mjs';
 import { createSpeaker } from './speaker.mjs';
 import { DEFAULT_VOICE, FISH_CHOICES } from './fish.mjs';
+import { ttsEngine, ttsEngines } from './tts.mjs';
+import { listVoices } from './tts-openai.mjs';
 import { createSecrets, retryLoad } from './secrets.mjs';
 import { createActivity } from './activity.mjs';
 import { canCircle, canSnap, hasHands, hasHotkeys, hasVoice, linuxSession, micTrouble, needsVoiceModel, platformLine, samePair, seesPointer, writeChord, writeChords } from './platform.mjs';
@@ -83,8 +85,10 @@ const DEFAULT_KEYS = process.platform === 'win32'
 const DEFAULTS = {
   provider: null, model: null, sound: true, allowActions: false, voice: true,
   onboarded: false, onboardStep: 0, filesAsked: false, keys: DEFAULT_KEYS, muteWhileTalking: true, autoListen: false, setupVersion: 0, size: 'default', look: 'classic', introDone: false,
-  replies: 'text', // 'voice': spoken with Fish Audio as well as shown
+  replies: 'text', // 'voice': spoken with the voice engine as well as shown
   fishModel: FISH_CHOICES[0].id, // Drama 3 (most expressive) or S2.1 Pro (natural pace, cheaper)
+  ttsProvider: 'fish', // which voice speaks: fish, gemini, or a custom OpenAI-compatible endpoint
+  ttsModel: '', ttsVoice: '', ttsUrl: '',
 };
 const LINUX = process.platform === 'linux';
 // Linux: "x11" or "wayland" (the app says which). Wayland keeps apps from seeing the pointer over other apps and
@@ -126,7 +130,7 @@ let shellInfo = null; // resolves the shell's reply to it: screens, tray, panel,
 }
 const saveConfig = () => writeJson(CONFIG_PATH, config, { backup: true });
 
-// ---------- spoken replies (Fish Audio) ----------
+// ---------- spoken replies (the voice engine) ----------
 // The key is the user's own: in the Keychain (macOS), DPAPI-encrypted (Windows) or the desktop's keyring (Linux),
 // never in the config or logs.
 const secrets = createSecrets({ hands: process.env.ROAMIES_HANDS || '', dataDir: path.join(path.dirname(CONFIG_PATH), 'sidekick') });
@@ -138,17 +142,60 @@ const speech = createSpeaker({
   onProblem: (what) => {
     if (Date.now() - voiceProblemAt < 10 * 60_000) return;
     voiceProblemAt = Date.now();
-    say(what === 'key' ? 'My Fish Audio key isn\'t working, so replies are text for now.' : 'My voice isn\'t working right now, so replies are text for now.', 'concerned');
+    say(what === 'key' ? `My ${engine().keyLabel} key isn't working, so replies are text for now.` : "My voice isn't working right now, so replies are text for now.", 'concerned');
   },
 });
-speech.setVoice(lookVoice());
-speech.setModel(config.fishModel);
+// Which engine speaks: Fish Audio (the default), Google Gemini, or any OpenAI-compatible endpoint. Each has
+// its own key, model and voice; the panel's Voice page picks them.
+const engineId = () => (ttsEngines().some((e) => e.id === config.ttsProvider) ? config.ttsProvider : 'fish');
+const engine = () => ttsEngine(engineId());
+/** The engine in use, with the model's, voice's and endpoint the user picked for it. */
+function applyEngine() {
+  const e = engine();
+  speech.setProvider(e.id);
+  if (e.id === 'fish') { speech.setModel(config.fishModel); speech.setVoice(lookVoice()); return; }
+  speech.setModel(config.ttsModel || e.defaultModel);
+  speech.setVoice(config.ttsVoice || e.defaultVoice);
+  speech.setUrl(config.ttsUrl || '');
+}
+applyEngine();
+// The key the engine needs: Fish's own, Gemini's (the Google AI Studio key already saved for chat, or one
+// saved here for speech), or the custom endpoint's (most local servers want none at all).
+async function engineKey(id = engineId()) {
+  const e = ttsEngine(id);
+  if (!e.needsKey) return null;
+  if (id === 'gemini') {
+    // A key saved here for speech, or the one already saved for chat (same account, same AI Studio key).
+    if (!LINUX || config.ttsKeySaved) {
+      const saved = await secrets.get(e.keySecret).catch(() => null);
+      if (saved) return saved;
+    }
+    for (const k of apiKeyStorageKeys('gemini')) {
+      const c = await auth.getCredentials(k).catch(() => null);
+      if (c?.accessToken) return c.accessToken;
+    }
+    return null;
+  }
+  return secrets.get(e.keySecret).catch(() => null);
+}
+/** Puts the engine's key in the speaker (or takes it away when there's none). */
+async function loadEngineKey(id = engineId()) {
+  const k = await engineKey(id);
+  speech.setKey(k);
+  ttsHasKey = !!k;
+  return !!k;
+}
+// Whether a key is saved for the engine in use (the panel's Add/Change/Remove row).
+let ttsHasKey = false;
+// The voices a custom endpoint offers, when it lists them (Kokoro-FastAPI does).
+let ttsVoices = [];
 // Read once, and again later if the keychain couldn't be read yet (locked at login, or its prompt unanswered): before,
 // one failed read left spoken replies off until the app restarted.
 // Linux: reading the keyring can pop up an "unlock your keyring" dialog (an auto-login desktop leaves it locked), so it's
-// only read once a key has been saved there (fishKeySaved).
-const fishKeyLoaded = LINUX && !config.fishKeySaved ? Promise.resolve()
-  : retryLoad(() => secrets.get('fish-audio').then((k) => { if (k && !speech.on) { speech.setKey(k); menu(); } }), { onError: (e) => console.error('fish key', e.message) });
+// only read once a key has been saved there (fishKeySaved, ttsKeySaved).
+const keySaved = () => (engineId() === 'fish' ? !!config.fishKeySaved : !!config.ttsKeySaved);
+const ttsKeyLoaded = LINUX && !keySaved() ? Promise.resolve()
+  : retryLoad(() => engineKey().then((k) => { ttsHasKey = !!k; if (k && !speech.on) { speech.setKey(k); menu(); } }), { onError: (e) => console.error('tts key', e.message) });
 
 // ---------- shortcuts ----------
 const MOD_ORDER = ['control', 'option', 'shift', 'command'];
@@ -729,7 +776,7 @@ let lastReply = '', lastFailed = false;
 // The agent for the next request, made or rebuilt if needed: null when ready, else what to tell the user.
 async function readyAgent() {
   await resumed;
-  await fishKeyLoaded;
+  await ttsKeyLoaded;
   await refreshAuth();
   if (!ensureModel()) return `Sign in to an AI provider first: the Model page in ${PANEL}. Then ask me again!`;
   if (!session) { session = newSession(config.provider, config.model); liveBlocks.clear(); agent = null; pruneSessions(); }
@@ -1010,13 +1057,13 @@ function setLook(l) {
   if (!LOOKS.some(([id]) => id === l)) return;
   config.look = l; saveConfig();
   agentStale = true; // its name is in the prompt
-  speech.setVoice(lookVoice());
+  if (engineId() === 'fish') speech.setVoice(lookVoice()); // the look's voice is a Fish one
   ui({ kind: 'look', look: l }); menu();
 }
 
 async function setReplies(mode) {
-  await fishKeyLoaded;
-  if (mode === 'voice' && !speech.on) return fishKeyLogin({ thenVoice: true });
+  await ttsKeyLoaded;
+  if (mode === 'voice' && !speech.on) return ttsKeyLogin({ thenVoice: true });
   if (config.replies === mode) return;
   config.replies = mode; saveConfig();
   agentStale = true; // the spoken and written styles are different prompts
@@ -1034,37 +1081,84 @@ function speakLine(text, mood = 'happy') {
   if (v) { v.say(text); v.end(); }
 }
 
-async function removeFishKey() {
-  try { await secrets.delete('fish-audio'); } catch { return say(`I couldn't remove the key${MAC ? ' from your Keychain' : LINUX ? ' from your keyring' : ''}. Try again in a moment.`, 'concerned'); }
+async function removeTtsKey() {
+  const e = engine();
+  try { await secrets.delete(e.keySecret); } catch { return say(`I couldn't remove the key${MAC ? ' from your Keychain' : LINUX ? ' from your keyring' : ''}. Try again in a moment.`, 'concerned'); }
   speech.setKey(null); speech.stop();
-  if (config.fishKeySaved) { config.fishKeySaved = false; saveConfig(); }
+  ttsHasKey = false;
+  if (e.id === 'fish') { if (config.fishKeySaved) { config.fishKeySaved = false; saveConfig(); } }
+  else if (config.ttsKeySaved) { config.ttsKeySaved = false; saveConfig(); }
   if (config.replies === 'voice') { config.replies = 'text'; saveConfig(); agentStale = true; }
   menu();
-  say('Fish Audio key removed. Replies are text only.', 'happy');
+  say(`${e.keyLabel} key removed. Replies are text only.`, 'happy');
 }
 
 // note(text, bad): typed into the panel or the setup guide, so how it went shows there too, next to the field.
-async function fishKeyLogin({ thenVoice = false, given = null, note = null } = {}) {
+async function ttsKeyLogin({ thenVoice = false, given = null, note = null } = {}) {
   const say = note ? (text, mood) => { sayOut(text, mood); note(text, mood === 'concerned'); } : sayOut;
-  const key = (given ?? (await ask({ prompt: 'Paste your Fish Audio API key', placeholder: 'Fish Audio API key', mask: true })))?.trim();
-  if (!key) return note?.('Paste your Fish Audio key first.', true);
-  if (!/^[\x21-\x7e]{8,512}$/.test(key)) return say("That doesn't look like a Fish Audio key. Copy it again from fish.audio.", 'concerned');
-  const prev = await secrets.get('fish-audio').catch(() => null);
+  const e = engine(), label = e.keyLabel ?? 'voice';
+  const key = (given ?? (await ask({ prompt: `Paste your ${label} API key`, placeholder: `${label} API key`, mask: true })))?.trim();
+  if (!key) return note?.(`Paste your ${label} key first.`, true);
+  if (!/^[\x21-\x7e]{8,512}$/.test(key)) return say(`That doesn't look like a ${label} key. Copy it again and retry.`, 'concerned');
+  const prev = await secrets.get(e.keySecret).catch(() => null);
   speech.setKey(key);
   const a = await speech.check();
   if (!a.ok) {
     speech.setKey(prev);
-    return say(a.reason === 'key' ? "That key didn't work. Copy it again from fish.audio and retry." : "I couldn't reach Fish Audio. Check the connection and try again.", 'concerned');
+    return say(a.reason === 'key' ? `That key didn't work. Copy it again and retry.` : `I couldn't reach ${label}. Check the connection and try again.`, 'concerned');
   }
-  try { await secrets.set('fish-audio', key); if (!config.fishKeySaved) { config.fishKeySaved = true; saveConfig(); } } catch (e) {
-    console.error('fish key save', e.message);
+  try {
+    await secrets.set(e.keySecret, key);
+    ttsHasKey = true;
+    if (e.id === 'fish') { if (!config.fishKeySaved) { config.fishKeySaved = true; saveConfig(); } }
+    else if (!config.ttsKeySaved) { config.ttsKeySaved = true; saveConfig(); }
+  } catch (err) {
+    console.error('tts key save', err.message);
     speech.setKey(prev);
-    return say(`I couldn't save the key safely${MAC ? ' in your Keychain' : LINUX ? `: ${String(e?.message ?? 'no keyring').slice(0, 140)}` : ''}, so voice stays off.`, 'concerned');
+    return say(`I couldn't save the key safely${MAC ? ' in your Keychain' : LINUX ? `: ${String(err?.message ?? 'no keyring').slice(0, 140)}` : ''}, so voice stays off.`, 'concerned');
   }
   if (thenVoice || config.replies !== 'voice') { config.replies = 'voice'; saveConfig(); agentStale = true; }
   menu(); if (onboarding) obState();
-  note?.('Fish Audio key saved. Voice is on.');
+  note?.(`${label} key saved. Voice is on.`);
   speakLine(speech.model.endsWith('-free') ? "Voice is on, on Fish Audio's free model since the account has no credit." : 'Voice is on. This is how I sound.');
+}
+
+// ---------- the voice engine the user picks ----------
+async function setEngine(id) {
+  if (!ttsEngines().some((e) => e.id === id) || id === engineId()) return;
+  config.ttsProvider = id; saveConfig();
+  applyEngine();
+  await loadEngineKey(id);
+  menu(); if (onboarding) obState();
+  say(`My voice is now ${engine().label}.`, 'happy');
+}
+
+function setTtsModel(id) {
+  const e = engine();
+  if (e.id === 'fish') { config.fishModel = id; saveConfig(); speech.setModel(id); }
+  else { config.ttsModel = id; saveConfig(); speech.setModel(id); }
+  menu();
+}
+
+function setTtsVoice(id) {
+  if (engineId() === 'fish') return;
+  config.ttsVoice = id; saveConfig(); speech.setVoice(id);
+  menu();
+}
+
+/** A line spoken with the engine in use, so the user hears whether it works. */
+function testVoice() {
+  if (!speech.on) return say(`I need a ${engine().keyLabel} key first. Add it on the Voice page in ${PANEL}.`, 'concerned');
+  speakLine('This is how I sound.');
+}
+
+/** The voices a custom endpoint offers, if it lists them. */
+async function loadTtsVoices() {
+  if (!config.ttsUrl) return say('Set the speech endpoint first, then I can ask it for its voices.', 'concerned');
+  const list = await listVoices(config.ttsUrl, ttsHasKey ? (await engineKey()) : null).catch(() => []);
+  ttsVoices = list;
+  panel();
+  say(list.length ? `That endpoint has ${list.length} voices. Pick one on the Voice page in ${PANEL}.` : "That endpoint doesn't list its voices. Type the name of one instead.", list.length ? 'happy' : 'concerned');
 }
 
 // ---------- updates ----------
@@ -1281,6 +1375,16 @@ function panelState() {
     size: sizeNow(), sizes: SIZES,
     replies: config.replies === 'voice' ? 'voice' : 'text', fishKey: speech.on,
     fishModel: speech.pick, fishModels: FISH_CHOICES, fishFree: speech.on && speech.model.endsWith('-free'),
+    // The voice engine in use, and what it can be set to.
+    tts: {
+      provider: engineId(), engines: ttsEngines(), label: engine().label,
+      models: engine().models ?? [],
+      model: engineId() === 'fish' ? speech.pick : (config.ttsModel || engine().defaultModel),
+      voice: engineId() === 'fish' ? speech.voice : (config.ttsVoice || engine().defaultVoice),
+      url: config.ttsUrl ?? '',
+      key: speech.on, hasKey: ttsHasKey, needsKey: engine().needsKey, needsUrl: engine().needsUrl, keyLabel: engine().keyLabel,
+      voices: engine().voices ?? ttsVoices,
+    },
     voice: VOICE_OK ? {
       on: !!config.voice, keys: HOTKEYS_OK ? talkSymbols() : null, ready: voiceReady(), mac: MAC, mute: config.muteWhileTalking !== false, autoListen: !!config.autoListen,
       download: NEEDS_MODEL && config.voice && !voiceReady() ? { status: voiceModel.status, pct: voiceModel.total ? Math.floor((voiceModel.done / voiceModel.total) * 100) : 0, size: sizeLabel() } : null,
@@ -1442,11 +1546,15 @@ async function onMenu(id) {
   else if (id.startsWith('look:')) setLook(id.slice(5));
   else if (id === 'replies:text') setReplies('text');
   else if (id === 'replies:voice') setReplies('voice');
-  else if (id.startsWith('fishmodel:') && FISH_CHOICES.some((c) => c.id === id.slice(10))) {
-    config.fishModel = id.slice(10); saveConfig(); speech.setModel(config.fishModel); menu();
-  }
-  else if (id === 'fishkey') fishKeyLogin();
-  else if (id === 'fishkey_remove') removeFishKey();
+  else if (id.startsWith('fishmodel:') && FISH_CHOICES.some((c) => c.id === id.slice(10))) setTtsModel(id.slice(10));
+  else if (id.startsWith('tts:')) setEngine(id.slice(4));
+  else if (id.startsWith('ttsmodel:')) setTtsModel(id.slice(9));
+  else if (id.startsWith('ttsvoice:')) setTtsVoice(id.slice(9));
+  else if (id === 'tts_test') testVoice();
+  else if (id === 'tts_voices') loadTtsVoices();
+  else if (id === 'fishkey') ttsKeyLogin();
+  else if (id === 'fishkey_remove') removeTtsKey();
+  else if (id === 'ttskey_remove') removeTtsKey();
   else if (id === 'sound') { config.sound = !config.sound; saveConfig(); ui({ kind: 'sound', on: config.sound }); voiceConfig(); menu(); }
   else if (id === 'actions') {
     config.allowActions = !config.allowActions; saveConfig(); menu(); // live section picks this up
@@ -1606,6 +1714,8 @@ function obState() {
     size: sizeNow(),
     replies: config.replies === 'voice' ? 'voice' : 'text',
     fishKey: speech.on,
+    // The voice engine in use, so the guide asks for the right key.
+    tts: { provider: engineId(), label: engine().label, keyLabel: engine().keyLabel, needsKey: engine().needsKey, needsUrl: engine().needsUrl },
   });
 }
 
@@ -1626,7 +1736,7 @@ async function filesStatus(request) {
 
 let keysBefore = null;
 async function onGuide(m) {
-  if (m.type === 'ob_hello') { onboarding = true; await refreshAuth(); await fishKeyLoaded; obState(); }
+  if (m.type === 'ob_hello') { onboarding = true; await refreshAuth(); await ttsKeyLoaded; obState(); }
   else if (m.type === 'ob_closed') { onboarding = false; endIntro(); stopShowcase(); if (tourPending) setTimeout(playTour, 800); }
   else if (m.type === 'ob_showcase') playShowcase();
   else if (m.type === 'ob_showcase_warm') warmShowcase();
@@ -1637,10 +1747,10 @@ async function onGuide(m) {
   else if (m.type === 'chat_forget' && typeof m.id === 'string') { await forgetFact(m.id); ob({ kind: 'chat_facts', facts: introFacts() }); menu(); }
   else if (m.type === 'ob_step') { config.onboardStep = Math.max(0, Math.min(7, m.step | 0)); saveConfig(); }
   // Voice needs a working key first: without one, the guide asks for it (ob_fishkey) instead.
-  else if (m.type === 'ob_replies' && (m.mode === 'text' || (m.mode === 'voice' && speech.on))) { await fishKeyLoaded; await setReplies(m.mode); }
+  else if (m.type === 'ob_replies' && (m.mode === 'text' || (m.mode === 'voice' && speech.on))) { await ttsKeyLoaded; await setReplies(m.mode); }
   else if (m.type === 'ob_fishkey' && typeof m.key === 'string') {
     const note = (text, bad) => ob({ kind: 'fish', ok: !bad, error: bad ? text : null });
-    await fishKeyLogin({ given: m.key.slice(0, 1000), thenVoice: true, note }).catch((e) => note(`Couldn't save the key: ${String(e?.message ?? e).slice(0, 80)}`, true));
+    await ttsKeyLogin({ given: m.key.slice(0, 1000), thenVoice: true, note }).catch((e) => note(`Couldn't save the key: ${String(e?.message ?? e).slice(0, 80)}`, true));
   }
   else if (m.type === 'ob_login' && OAUTH[m.provider]) oauthLogin(m.provider, typeof m.id === 'string' ? m.id.slice(0, 40) : undefined);
   else if (m.type === 'ob_login_cancel') cancelLogin(typeof m.id === 'string' ? m.id : undefined);
@@ -1696,7 +1806,16 @@ createInterface({ input: process.stdin }).on('line', (line) => {
     if (storageKeyProvider(id) !== m.provider) return;
     apiKeyLogin(id, m.key.slice(0, 1000)).then(() => panelNote(signedIn.get(m.provider) ? `${label} is connected.` : `That ${label} key didn't work.`, !signedIn.get(m.provider)))
       .catch((e) => panelNote(`That ${label} key didn't work: ${String(e?.message ?? e).slice(0, 80)}`, true));
-  } else if (m.type === 'panel_fishkey' && typeof m.key === 'string') fishKeyLogin({ given: m.key.slice(0, 1000), note: panelNote }).catch((e) => console.error('fish key', e));
+  } else if (m.type === 'panel_fishkey' && typeof m.key === 'string') ttsKeyLogin({ given: m.key.slice(0, 1000), note: panelNote }).catch((e) => console.error('fish key', e));
+  else if (m.type === 'panel_ttskey' && typeof m.key === 'string') ttsKeyLogin({ given: m.key.slice(0, 1000), note: panelNote }).catch((e) => console.error('tts key', e));
+  // A field the panel typed: the endpoint, the model or the voice of the engine in use.
+  else if (m.type === 'panel_tts' && typeof m.field === 'string' && typeof m.value === 'string') {
+    const v = m.value.trim().slice(0, 300);
+    if (m.field === 'url') { config.ttsUrl = v; saveConfig(); speech.setUrl(v); }
+    else if (m.field === 'model' && engineId() !== 'fish') { config.ttsModel = v; saveConfig(); speech.setModel(v); }
+    else if (m.field === 'voice' && engineId() !== 'fish') { config.ttsVoice = v; saveConfig(); speech.setVoice(v); }
+    panel();
+  }
   else if (m.type === 'answer') { pending.get(m.id)?.(m.text ?? null); pending.delete(m.id); }
   else if (m.type === 'ui_ready') {
     retired.then((notes) => { if (notes.length) { retired = Promise.resolve([]); say(`${notes.join(' ')} Do it on the Model page in ${PANEL}.`, 'concerned'); } });

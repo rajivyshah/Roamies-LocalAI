@@ -484,9 +484,11 @@
     ready: () => replies.mode() === 'text' || (!!state?.fishKey && state.replies === 'voice'),
     render() {
       const mode = replies.mode(), on = state?.replies === 'voice' && state?.fishKey;
+      // The voice engine in use (Fish by default): the guide asks for that engine's key, not Fish's.
+      const label = state?.tts?.keyLabel ?? 'Fish Audio', fish = (state?.tts?.provider ?? 'fish') === 'fish';
       const CARDS = [
         ['text', 'Text only', 'Answers in my bubbles'],
-        ['voice', 'Voice + text', on ? 'Voice is on' : mode === 'voice' ? 'Needs a Fish Audio key' : 'Said out loud too'],
+        ['voice', 'Voice + text', on ? 'Voice is on' : mode === 'voice' ? `Needs a ${label} key` : 'Said out loud too'],
       ];
       $('replies').replaceChildren(...CARDS.map(([id, name, sub]) => {
         const checked = mode === id;
@@ -501,8 +503,10 @@
       $('fish-form').hidden = mode !== 'voice' || (saved && !replies.changing);
       $('fish-change').hidden = !saved || mode !== 'voice';
       $('fish-change').textContent = replies.changing ? 'Keep my current key' : 'Change key';
-      $('fish-label').textContent = replies.changing ? 'New Fish Audio API key' : 'Fish Audio API key';
       $('fish-change').setAttribute('aria-expanded', String(replies.changing));
+      $('fish-label').textContent = replies.changing ? `New ${label} API key` : `${label} API key`;
+      $('fish-link').hidden = !fish; // the affiliate link is Fish's
+      $('fish-note').textContent = fish ? 'Spoken replies are billed to your own Fish Audio account.' : 'Your key is kept in your keychain, never in the settings file.';
       $('fish-save').disabled = replies.saving;
       $('fish-save').textContent = replies.saving ? 'Checking…' : 'Save';
       nav();
@@ -515,7 +519,7 @@
         send({ type: 'ob_replies', mode: id });
       }
       replies.render();
-      if (id === 'voice' && !state?.fishKey) { $('fish-input').focus(); quip('Got a Fish Audio key?', 3); }
+      if (id === 'voice' && !state?.fishKey) { $('fish-input').focus(); quip(`Got a ${state?.tts?.keyLabel ?? 'Fish Audio'} key?`, 3); }
     },
     onFish(msg) {
       replies.saving = false;
@@ -1238,6 +1242,7 @@
       // &filesAsked=1: Allow was tapped for the folders in an earlier run. &replies=voice&fish=1: voice already on.
       kind: 'state', platform: q.get('platform') || 'darwin', step: +(q.get('step') || 0), sound: true, look: q.get('look') || 'classic', size: q.get('size') || 'default', voice: true, actions: false, login: true, filesAsked: q.get('filesAsked') === '1',
       replies: q.get('replies') === 'voice' ? 'voice' : 'text', fishKey: q.get('fish') === '1',
+      tts: { provider: 'fish', label: 'Fish Audio', keyLabel: 'Fish Audio', needsKey: true, needsUrl: false },
       bind: q.get('session') === 'wayland' ? Object.fromEntries(['summon', 'talk', 'ask', 'list', 'panel'].map((k) => [k, `'/home/sam/Apps/Roamies 0.1.33.AppImage' --${k}`])) : null,
       keys: q.get('platform') === 'win32' ? { talk: ['control', 'option'], write: ['control', 'shift'], summon: 'Control+Shift+KeyS', snap: 'Control+Shift+KeyA' } : { talk: ['control', 'option'], write: win ? ['control', 'shift'] : ['option', 'command'], summon: 'Control+Alt+KeyS', snap: 'Control+Alt+KeyA' }, connected: null,
       voiceModel: win ? { status: q.get('model') || 'missing', done: q.get('model') === 'downloading' ? 281601575 : 0, total: 670479942, error: q.get('model') === 'error' ? 'Download failed. Check your internet.' : null, size: '670 MB' } : null,

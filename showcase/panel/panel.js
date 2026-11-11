@@ -463,26 +463,81 @@
     }));
     return g;
   }
+  // A text field for the engine's endpoint, model or voice: it saves when the field is left (or Enter is pressed).
+  function ttsField(field, label, value, placeholder = '') {
+    const input = el('input', { type: 'text', id: `tts-${field}`, spellcheck: false, autocomplete: 'off', placeholder, 'aria-label': label, maxLength: 300 });
+    input.value = value ?? '';
+    const save = () => { const v = input.value.trim(); if (v === (value ?? '')) return; send({ type: 'panel_tts', field, value: v }); };
+    input.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); save(); } });
+    input.addEventListener('change', save);
+    return el('div', { className: 'setting' },
+      el('span', {}, label, el('small', { textContent: value || placeholder })),
+      el('span', { className: 'row-btns' }, el('span', { className: 'px field' }, input)));
+  }
+  const ENGINE_TIP = {
+    fish: 'The voices Roamies shipped with. Billed to your Fish Audio account.',
+    gemini: "Google Gemini's text-to-speech. It uses your Google AI Studio key, the same one as for chat.",
+    openai: 'Your own OpenAI-compatible speech endpoint: a local Kokoro or Piper, or a server of yours. Free to run locally.',
+  };
   function voicePage() {
-    const v = state.voice;
+    const v = state.voice, t = state.tts ?? {};
+    const engine = t.provider ?? 'fish';
+    const canSpeak = t.key ?? state.fishKey;
+    const engineRow = t.engines?.length > 1 ? [
+      el('p', { className: 'sub', textContent: 'Voice engine' }),
+      picks('Voice engine', t.engines.map((e) => [e.id, e.label]), engine, (x) => act(`tts:${x}`), 'ttsengine',
+        Object.fromEntries(t.engines.map((e) => [e.id, ENGINE_TIP[e.id] ?? '']))),
+    ] : null;
+    const modelRow = t.models?.length ? [
+      el('p', { className: 'sub', textContent: 'Voice model' }),
+      picks('Voice model', t.models.map((c) => [c.id, c.name]), t.model, (x) => act(engine === 'fish' ? `fishmodel:${x}` : `ttsmodel:${x}`), 'ttsmodel',
+        Object.fromEntries(t.models.map((c) => [c.id, WHY_LONG[c.id] ?? '']))),
+      engine === 'fish' ? el('p', { className: `why${state.fishFree ? ' late' : ''}`, textContent: state.fishFree ? "No credit left, so it's on Fish's free tier" : WHY[t.model] ?? '' }) : null,
+    ] : null;
+    const voiceRow = t.voices?.length ? [
+      el('p', { className: 'sub', textContent: 'Voice' }),
+      picks('Voice', t.voices.map((c) => [c.id, c.name]), t.voice, (x) => act(`ttsvoice:${x}`), 'ttsvoice'),
+    ] : null;
+    const freeRow = t.needsUrl ? [
+      el('p', { className: 'sub', textContent: 'Endpoint' }),
+      ttsField('url', 'Speech endpoint', t.url, 'http://localhost:8880'),
+      ttsField('model', 'Model', t.model, 'kokoro'),
+      ttsField('voice', 'Voice', t.voice, 'af_heart'),
+      el('div', { className: 'links' }, link('Ask the endpoint for its voices', () => act('tts_voices'), { k: 'tts-voices', aria: 'Ask the speech endpoint which voices it has' })),
+    ] : null;
+    // Fish has its own key; the other engines either bring their own or need none at all.
+    const keyRow = engine === 'fish' ? [
+      el('div', { className: 'setting' },
+        el('span', {}, 'Fish Audio key', el('small', { textContent: state.fishKey ? `Saved in ${where()}` : 'Needed for spoken replies' })),
+        el('span', { className: 'row-btns' },
+          link(ui.key === 'fish' ? 'Cancel' : state.fishKey ? 'Change' : 'Add', () => { ui.key = ui.key === 'fish' ? null : 'fish'; render(ui.key ? 'key-fish' : 'addkey:fish'); }, { k: 'addkey:fish', aria: state.fishKey ? 'Change the Fish Audio key' : 'Add a Fish Audio key' }),
+          state.fishKey && ui.key !== 'fish' ? armed('Remove', 'Confirm', 'fishkey-remove', 'fishkey_remove', 'Remove the Fish Audio key') : null)),
+      keyForm('fish', 'Fish Audio', (key) => send({ type: 'panel_fishkey', key })),
+    ] : t.needsKey ? [
+      el('div', { className: 'setting' },
+        el('span', {}, `${t.keyLabel} key`, el('small', { textContent: t.hasKey ? `Saved in ${where()}` : 'Needed for spoken replies' })),
+        el('span', { className: 'row-btns' },
+          link(ui.key === 'tts' ? 'Cancel' : t.hasKey ? 'Change' : 'Add', () => { ui.key = ui.key === 'tts' ? null : 'tts'; render(ui.key ? 'key-tts' : 'addkey:tts'); }, { k: 'addkey:tts', aria: `Add a ${t.keyLabel} key` }),
+          t.hasKey && ui.key !== 'tts' ? armed('Remove', 'Confirm', 'ttskey-remove', 'ttskey_remove', `Remove the ${t.keyLabel} key`) : null)),
+      keyForm('tts', t.keyLabel ?? 'Voice', (key) => send({ type: 'panel_ttskey', key })),
+    ] : null;
     return [
       group('Spoken replies', 'Hear me as well as read me.', null,
         picks('Replies', [['text', 'Text only'], ['voice', 'Voice and text']], state.replies, (x) => {
-          if (x === 'voice' && !state.fishKey) { ui.key = 'fish'; render('key-fish'); note('Add a Fish Audio key to hear me talk.'); return; }
+          if (x === 'voice' && !canSpeak) {
+            if (engine === 'fish') { ui.key = 'fish'; render('key-fish'); note('Add a Fish Audio key to hear me talk.'); return; }
+            if (t.needsKey) { ui.key = 'tts'; render('key-tts'); note(`Add a ${t.keyLabel} key to hear me talk.`); return; }
+            note('Set the speech endpoint on this page first.');
+            return;
+          }
           act(`replies:${x}`);
         }, 'replies'),
-        state.replies === 'voice' && state.fishModels?.length ? [
-          el('p', { className: 'sub', textContent: 'Voice model' }),
-          picks('Voice model', state.fishModels.map((c) => [c.id, c.name]), state.fishModel, (x) => act(`fishmodel:${x}`), 'fishmodel',
-            Object.fromEntries(state.fishModels.map((c) => [c.id, `${WHY_LONG[c.id] ?? ''} ${price(c)}`.trim()]))),
-          el('p', { className: `why${state.fishFree ? ' late' : ''}`, textContent: state.fishFree ? "No credit left, so it's on Fish's free tier" : WHY[state.fishModel] ?? '' }),
-        ] : null,
-        el('div', { className: 'setting' },
-          el('span', {}, 'Fish Audio key', el('small', { textContent: state.fishKey ? `Saved in ${where()}` : 'Needed for spoken replies' })),
-          el('span', { className: 'row-btns' },
-            link(ui.key === 'fish' ? 'Cancel' : state.fishKey ? 'Change' : 'Add', () => { ui.key = ui.key === 'fish' ? null : 'fish'; render(ui.key ? 'key-fish' : 'addkey:fish'); }, { k: 'addkey:fish', aria: state.fishKey ? 'Change the Fish Audio key' : 'Add a Fish Audio key' }),
-            state.fishKey && ui.key !== 'fish' ? armed('Remove', 'Confirm', 'fishkey-remove', 'fishkey_remove', 'Remove the Fish Audio key') : null)),
-        keyForm('fish', 'Fish Audio', (key) => send({ type: 'panel_fishkey', key }))),
+        engineRow,
+        modelRow,
+        voiceRow,
+        freeRow,
+        keyRow,
+        canSpeak ? el('div', { className: 'links' }, link('Play a sample', () => act('tts_test'), { k: 'tts-test', aria: 'Hear a sample in this voice' })) : null),
       v ? group('Talking to me', 'Speak instead of typing.', null,
         toggle('Voice control', v.download
           ? (v.download.status === 'downloading' ? `Downloading the voice model… ${v.download.pct}%` : v.download.status === 'error' ? 'The download failed' : `Needs a ${v.download.size} download`)
@@ -717,6 +772,11 @@
       size: 'default', sizes: [['default', 'Default'], ['small', 'Small'], ['cursor', 'Cursor']],
       replies: 'voice', fishKey: true, fishModel: 'drama-3', fishFree: false,
       fishModels: [{ id: 'drama-3', name: 'Drama 3', perM: 50, promo: { perM: 10, until: '2026-12-01T08:00:00Z' } }, { id: 's2.1-pro', name: 'S2.1 Pro', perM: 15 }],
+      tts: {
+        provider: 'fish', label: 'Fish Audio', key: true, hasKey: true, needsKey: true, needsUrl: false, keyLabel: 'Fish Audio',
+        engines: [{ id: 'fish', label: 'Fish Audio', needsKey: true, needsUrl: false }, { id: 'gemini', label: 'Google Gemini', needsKey: true, needsUrl: false }, { id: 'openai', label: 'OpenAI-compatible endpoint', needsKey: false, needsUrl: true }],
+        models: [{ id: 'drama-3', name: 'Drama 3' }, { id: 's2.1-pro', name: 'S2.1 Pro' }], voices: [], model: 'drama-3', voice: '', url: '',
+      },
       voice: { on: true, keys: '⌃⌥', ready: true, mac: true, mute: true, download: null }, askKeys: '⌥⌘',
       sound: true, actions: false, login: { on: true },
       update: { available: new URLSearchParams(location.search).has('update') ? '0.9.1' : null, installing: false, checking: false, result: null },

@@ -47,6 +47,13 @@ const SENTENCE_START = /(?:^|[.!?…]["'”’)]*)\s*$/;
 // The body's emote tags set the tone of what follows when the model gave none.
 export const EMOTE_TONE = { hype: '[excited]', upset: '[frustrated]', motivate: '[encouraging]', wave: '[warm]', remind: '[serious]' };
 
+/** The voice cues in a line, taken out: for engines that don't act on them and would read them aloud. */
+export const stripCues = (text) => String(text ?? '')
+  .replace(new RegExp(CUE.source, 'gi'), ' ')
+  .replace(/\[[^\]]{1,40}\]/g, (m, inner, at, all) => (IS_CUE.test(m) || (LOOSE.test(m) && SENTENCE_START.test(all.slice(0, at))) ? ' ' : inner))
+  .replace(/\s+/g, ' ')
+  .trim();
+
 /** Streaming: drops voice cues from text that's shown, even when a cue is split across chunks. */
 export class CueFilter {
   constructor() { this.held = ''; this.trim = true; this.space = true; this.before = ''; } // before: the end of what's been shown // space: what's been shown so far ends in a space (or is nothing) // trim: drop the spaces a removed cue leaves behind
