@@ -16,7 +16,7 @@
   let state = null, tab = 'home', deferred = false;
   // What's open in the panel itself: a key field (provider id or 'fish'), the row action waiting for its
   // Confirm, each long list's page (pg) and how many rows fit on one (per, measured), Memory's tab and its search.
-  const ui = { key: null, kind: {}, arm: null, pg: {}, per: {}, mtab: 'facts', q: '', bindShown: new Set() };
+  const ui = { key: null, kind: {}, arm: null, pg: {}, per: {}, mtab: 'facts', q: '', bindShown: new Set(), endpoint: null };
   let armTimer = 0;
   const disarm = () => { clearTimeout(armTimer); if (ui.arm) { ui.arm = null; return true; } return false; };
 
@@ -405,14 +405,59 @@
   const signIn = (p) => link('Sign in', () => act(`login:${p.id}`), { k: `login:${p.id}`, aria: `Sign in to ${p.label}`, disabled: !!state.loggingIn });
   const addKey = (p) => link(ui.key === p.id ? 'Cancel' : 'Add key', () => { ui.key = ui.key === p.id ? null : p.id; render(ui.key ? `key-${p.id}` : `addkey:${p.id}`); }, { k: `addkey:${p.id}`, aria: `Add ${p.label} API key` });
 
+  // A form for a model server: its name, its address, what it is, and (maybe) its key.
+  function endpointForm() {
+    const label = el('input', { type: 'text', id: 'ep-label', autocomplete: 'off', spellcheck: false, placeholder: 'My server', 'aria-label': 'Name for this server', maxLength: 40 });
+    const url = el('input', { type: 'text', id: 'ep-url', autocomplete: 'off', spellcheck: false, placeholder: 'http://127.0.0.1:11434/v1', 'aria-label': 'Server address', maxLength: 300 });
+    const kind = el('select', { id: 'ep-kind', 'aria-label': 'Kind of server' }, (state.local?.kinds ?? []).map((k) => el('option', { value: k.id, textContent: k.label })));
+    // The address to type changes with the kind of server: show where it usually sits.
+    const kinds = state.local?.kinds ?? [];
+    const hint = () => kinds.find((k) => k.id === kind.value)?.hint ?? '';
+    kind.addEventListener('change', () => { url.placeholder = hint(); });
+    const key = el('input', { type: 'password', id: 'ep-key', autocomplete: 'off', spellcheck: false, placeholder: 'Key, only if it asks for one', 'aria-label': 'Server key', maxLength: 1000 });
+    const save = () => {
+      const u = url.value.trim();
+      if (!u) return url.focus();
+      send({ type: 'panel_endpoint', action: 'add', label: label.value.trim(), url: u, kind: kind.value, key: key.value.trim() });
+      label.value = ''; url.value = ''; key.value = '';
+      ui.endpoint = null;
+      render();
+    };
+    for (const input of [label, url, key]) input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') { e.preventDefault(); save(); }
+      else if (e.key === 'Escape') { e.stopPropagation(); ui.endpoint = null; render('addserver'); }
+    });
+    return el('div', { className: 'keyform col', hidden: ui.endpoint !== true },
+      el('span', { className: 'px field' }, label),
+      el('span', { className: 'px field' }, url),
+      el('span', { className: 'px field' }, kind),
+      el('span', { className: 'px field' }, key),
+      btn('Save', save, { k: 'save-endpoint', kind: 'primary' }));
+  }
+  // The user's own model servers: each one, what it serves, and whether it answered.
+  function endpointRows() {
+    const list = state.local?.endpoints ?? [];
+    if (!list.length) return el('p', { className: 'empty', textContent: 'No servers yet. Start Ollama, or add one below.' });
+    return el('ul', { className: 'list' }, list.map((e) => el('li', { className: 'acct' },
+      el('div', { className: 'setting' },
+        el('span', {}, e.label, el('small', { textContent: e.reachable ? `${e.baseUrl} · ${e.models.length} model${e.models.length === 1 ? '' : 's'}` : (e.reason ?? 'Not running') })),
+        el('span', { className: 'row-btns' },
+          e.saved ? armed('Remove', 'Confirm', `ep-remove-${e.id}`, `ep-remove:${e.id}`, `Remove ${e.label}`) : null,
+          e.saved ? null : link('Use it', () => send({ type: 'panel_endpoint', action: 'add', id: e.id, label: e.label, url: e.baseUrl, kind: e.kind, key: '' }), { k: `ep-use-${e.id}`, aria: `Use ${e.label}` }))))));
+  }
+
   // Settings, one page per concern.
   function modelPage() {
     const on = state.providers.filter((p) => p.on);
     const model = state.model ? `${state.model.provider}:${state.model.id}` : '';
-    const select = on.length ? el('span', { className: 'px field select' },
+    // The models on the user's own servers sit beside the cloud ones, under the server's own name.
+    const mine = (state.local?.endpoints ?? []).filter((e) => e.models.length).map((e) => el('optgroup', { label: `${e.label} (your own)` },
+      e.models.map((m) => el('option', { value: `local:${m.id}`, textContent: m.name, selected: `local:${m.id}` === model }))));
+    const select = (on.length || mine.length) ? el('span', { className: 'px field select' },
       el('select', { 'aria-label': 'Model', 'data-k': 'model', on: { change: (e) => act(`model:${e.target.value}`) } },
         model ? null : el('option', { value: '', textContent: 'Pick a model', disabled: true, selected: true }),
-        on.map((p) => el('optgroup', { label: p.label }, p.models.map((m) => el('option', { value: `${p.id}:${m.id}`, textContent: m.name, selected: `${p.id}:${m.id}` === model })))))) : null;
+        on.map((p) => el('optgroup', { label: p.label }, p.models.map((m) => el('option', { value: `${p.id}:${m.id}`, textContent: m.name, selected: `${p.id}:${m.id}` === model })))),
+        ...mine)) : null;
     const accounts = state.providers.filter((p) => p.on || p.method);
     const { box, nav } = paged('accounts', accounts, (p) => el('li', { className: `acct${ui.key === p.id ? ' open' : ''}` },
       el('div', { className: 'setting' },
@@ -428,6 +473,12 @@
         select ?? el('p', { className: 'empty', textContent: 'Sign in to an account below first.' })),
       el('div', { className: 'group paged' }, el('div', { className: 'ghead' }, el('h2', { textContent: 'Accounts' }), el('p', { textContent: 'Sign in to use their models.' })), box),
       foot(null, nav),
+      group('Your own models', 'A model on your own computer or server.', null,
+        endpointRows(),
+        el('div', { className: 'links' },
+          link(ui.endpoint ? 'Cancel' : 'Add a server', () => { ui.endpoint = ui.endpoint ? null : true; render(ui.endpoint ? 'addserver' : 'addendpoint'); }, { k: 'addserver', aria: 'Add a model server' }),
+          link('Look again', () => act('ep-refresh'), { k: 'ep-refresh', aria: 'Look at your servers again' })),
+        endpointForm()),
     ];
   }
   function appearancePage() {
@@ -751,6 +802,13 @@
       version: '0.9.0', os: /Win/.test(navigator.platform) ? 'win' : 'mac',
       status: { state: 'ready', text: 'Ready' }, busy: false, canNew: true,
       model: { provider: 'anthropic', id: 'claude-haiku-5-5', name: 'Claude Haiku 5.5', providerLabel: 'Anthropic' },
+      local: {
+        kinds: [{ id: 'ollama', label: 'Ollama', hint: 'http://127.0.0.1:11434/v1' }, { id: 'lmstudio', label: 'LM Studio', hint: 'http://127.0.0.1:1234/v1' }, { id: 'llamacpp', label: 'llama.cpp', hint: 'http://127.0.0.1:8080/v1' }, { id: 'vllm', label: 'vLLM', hint: 'http://127.0.0.1:8000/v1' }, { id: 'custom', label: 'Custom (OpenAI-compatible)', hint: 'http://127.0.0.1:8080/v1' }],
+        endpoints: [
+          { id: 'ollama', label: 'Ollama', kind: 'ollama', baseUrl: 'http://127.0.0.1:11434/v1', reachable: true, reason: null, saved: true, models: [{ id: 'local/ollama/qwen3.5:2b', name: 'qwen3.5:2b' }, { id: 'local/ollama/gemma4:12b', name: 'gemma4:12b' }] },
+          { id: 'lmstudio', label: 'LM Studio', kind: 'lmstudio', baseUrl: 'http://127.0.0.1:1234/v1', reachable: false, reason: 'Not running at http://127.0.0.1:1234/v1', saved: false, models: [] },
+        ],
+      },
       providers: [
         { id: 'anthropic', label: 'Anthropic', on: true, method: 'oauth', models: [{ id: 'claude-haiku-5-5', name: 'Claude Haiku 5.5' }, { id: 'claude-sonnet-5', name: 'Claude Sonnet 5' }] },
         { id: 'openai', label: 'OpenAI', on: false, method: 'oauth', key: true, models: [] },

@@ -34,6 +34,7 @@ import { SpeechText, CueFilter, VOICE_CUES, endsWithQuestion } from './speech.mj
 import { createSpeaker } from './speaker.mjs';
 import { DEFAULT_VOICE, FISH_CHOICES } from './fish.mjs';
 import { ttsEngine, ttsEngines } from './tts.mjs';
+import { LOCAL_KINDS, LOCAL_PROVIDER, discoverLocal, endpointOf, endpointsWithModels, isDefaultEndpoint, newEndpointId } from './local.mjs';
 import { listVoices } from './tts-openai.mjs';
 import { createSecrets, retryLoad } from './secrets.mjs';
 import { createActivity } from './activity.mjs';
@@ -73,7 +74,7 @@ const OAUTH = {
   // The current sign-in's ID token skips OpenAI's account picker.
   openai: async (cb) => { const previous = await auth.getCredentials(OPENAI_CHATGPT_KEY).catch(() => null); return loginChatGPT(cb, previous ? { previous } : {}); },
 };
-const PROVIDER_LABELS = Object.fromEntries(AUTH_PROVIDERS.map((p) => [p.value, p.label]));
+const PROVIDER_LABELS = { ...Object.fromEntries(AUTH_PROVIDERS.map((p) => [p.value, p.label])), [LOCAL_PROVIDER]: 'Your own model' };
 const MENU_PROVIDERS = ['anthropic', 'openai', ...AUTH_PROVIDERS.map((p) => p.value)].filter((v, i, a) => a.indexOf(v) === i);
 const FAST = { anthropic: 'claude-haiku-5-5', openai: 'gpt-6-luna', gemini: 'gemini-3.8-flash' };
 
@@ -89,6 +90,7 @@ const DEFAULTS = {
   fishModel: FISH_CHOICES[0].id, // Drama 3 (most expressive) or S2.1 Pro (natural pace, cheaper)
   ttsProvider: 'fish', // which voice speaks: fish, gemini, or a custom OpenAI-compatible endpoint
   ttsModel: '', ttsVoice: '', ttsUrl: '',
+  localEndpoints: [], // the user's own model servers: { id, label, kind, baseUrl }
 };
 const LINUX = process.platform === 'linux';
 // Linux: "x11" or "wayland" (the app says which). Wayland keeps apps from seeing the pointer over other apps and
@@ -257,21 +259,102 @@ async function refreshAuth() {
     for (const [id] of kinds) keyOn.set(id, await (kinds.length > 1 ? auth.hasCredentials(id) : auth.hasApiKey(id)).catch(() => false));
     for (const k of apiKeyStorageKeys(meta.value)) if (await auth.hasCredentials(k).catch(() => false)) storedKeys.add(k); else storedKeys.delete(k);
   }
+  // The user's own model servers: their credentials sit under "local:<endpoint>" in the same file.
+  for (const k of [...storedKeys]) if (k.startsWith('local:')) storedKeys.delete(k);
+  for (const e of config.localEndpoints ?? []) {
+    const k = `local:${e.id}`;
+    if (await auth.hasCredentials(k).catch(() => false)) storedKeys.add(k); else storedKeys.delete(k);
+  }
+  signedIn.set(LOCAL_PROVIDER, [...storedKeys].some((k) => k.startsWith('local:')));
 }
 // Some models run on only one kind of key (Kimi K2.8 Preview on a Kimi Code plan key, MiMo UltraSpeed on API Credits).
 const canRun = (p, id) => !!signedIn.get(p) && getAuthStorageKeys(p, id).some((k) => k === p || storedKeys.has(k));
 const runnable = (p) => getModelsForProvider(p).filter((m) => canRun(p, m.id));
 function ensureModel() {
   if (config.provider && getModel(config.model) && canRun(config.provider, config.model)) return true;
-  const p = ['anthropic', 'openai', 'gemini', ...MENU_PROVIDERS].find((x) => runnable(x).length);
+  // A model on the user's own server counts too: they may have no cloud account at all.
+  const p = ['anthropic', 'openai', 'gemini', LOCAL_PROVIDER, ...MENU_PROVIDERS].find((x) => runnable(x).length);
   if (!p) return false;
+  let def = null;
+  try { def = getDefaultModel(p)?.id ?? null; } catch { /* a provider with no models of its own */ }
+  const choices = [FAST[p], def].filter(Boolean);
   config.provider = p;
-  config.model = [FAST[p], getDefaultModel(p).id].find((id) => id && canRun(p, id)) ?? runnable(p)[0].id;
+  config.model = choices.find((id) => canRun(p, id)) ?? runnable(p)[0]?.id ?? null;
+  if (!config.model) return false;
   saveConfig();
   return true;
 }
 // Which of the provider's stored credentials this model uses (gemini-api, kimi-code, the ChatGPT plan before an OpenAI key…).
-const credsFor = (provider = config.provider, model = config.model) => auth.resolveCredentials(provider, { storageKeys: getAuthStorageKeys(provider, model) });
+const credsFor = async (provider = config.provider, model = config.model) => {
+  const c = await auth.resolveCredentials(provider, { storageKeys: getAuthStorageKeys(provider, model) });
+  // A local server's key (when it asks for one) lives in the OS secret store, not in the shared auth file.
+  if (provider === LOCAL_PROVIDER) {
+    const key = await localSecret(model);
+    if (key) return { ...c, accessToken: key };
+  }
+  return c;
+};
+
+// ---------- the user's own model servers ----------
+// Ollama is found by itself; the ones they added are probed too. The models that come back are registered,
+// so the app can pick one the same way it picks a cloud model.
+let localProbes = [];
+const localReady = discoverLocal(config.localEndpoints ?? []).then(async ({ probes, models }) => {
+  localProbes = probes;
+  // A server that was found by itself and answered is saved, so its models can be picked straight away.
+  for (const p of probes) {
+    if (!p.reachable || !(p.models ?? []).length) continue;
+    if (!isDefaultEndpoint(p.endpoint.id) || (config.localEndpoints ?? []).some((s) => s.id === p.endpoint.id)) continue;
+    config.localEndpoints = [...(config.localEndpoints ?? []), { id: p.endpoint.id, label: p.endpoint.label, kind: p.endpoint.kind, baseUrl: p.endpoint.baseUrl }];
+    saveConfig();
+    await auth.setLocalEndpoint(p.endpoint.id, p.endpoint.baseUrl).catch((e) => console.error('local endpoint', e.message));
+  }
+  return models;
+}).catch((e) => { console.error('local models', e.message); return []; });
+/** The key a local server asked for, from the OS secret store (null when it wants none). */
+async function localSecret(model) {
+  const id = endpointOf(model);
+  if (!id) return null;
+  return secrets.get(`local-${id}`).catch(() => null);
+}
+/** Look at the servers again: what answered, and what it serves now. */
+async function probeLocal(force = true) {
+  const { probes } = await discoverLocal(config.localEndpoints ?? [], { force });
+  localProbes = probes;
+  await refreshAuth();
+  menu(); panel();
+  return probes;
+}
+/** Add, change or forget a model server, then look at it again. */
+async function localEndpointAction(m) {
+  const list = config.localEndpoints ?? [];
+  if (m.action === 'refresh') { await probeLocal(); return panelNote('Looked at your servers again.'); }
+  if (m.action === 'remove') {
+    const id = String(m.id ?? '');
+    config.localEndpoints = list.filter((s) => s.id !== id);
+    saveConfig();
+    await auth.removeLocalEndpoint(id).catch(() => {});
+    await secrets.delete(`local-${id}`).catch(() => {});
+    await probeLocal();
+    return panelNote('Server removed.');
+  }
+  if (m.action !== 'add') return;
+  const baseUrl = String(m.url ?? '').trim().replace(/\/+$/, '');
+  if (!/^https?:\/\/\S+/i.test(baseUrl)) return panelNote('That needs to be an http:// or https:// address.', true);
+  const label = String(m.label ?? '').trim().slice(0, 40) || 'My server';
+  const kind = LOCAL_KINDS.some((k) => k.id === m.kind) ? m.kind : 'custom';
+  const id = list.some((s) => s.id === m.id) ? m.id : newEndpointId(label, list.map((s) => s.id));
+  config.localEndpoints = [...list.filter((s) => s.id !== id), { id, label, kind, baseUrl }];
+  saveConfig();
+  // The address (and a placeholder key) lives in the shared auth file, where the framework reads it from.
+  // A key the server asks for goes in the OS secret store instead, with the rest of the user's keys.
+  await auth.setLocalEndpoint(id, baseUrl).catch((e) => console.error('local endpoint', e.message));
+  const key = String(m.key ?? '').trim();
+  if (key) await secrets.set(`local-${id}`, key).catch((e) => console.error('local key', e.message));
+  else await secrets.delete(`local-${id}`).catch(() => {});
+  await probeLocal();
+  panelNote(`${label} saved.`);
+}
 
 const userName = (() => {
   try {
@@ -777,6 +860,7 @@ let lastReply = '', lastFailed = false;
 async function readyAgent() {
   await resumed;
   await ttsKeyLoaded;
+  await localReady; // the models on the user's own servers, found and registered
   await refreshAuth();
   if (!ensureModel()) return `Sign in to an AI provider first: the Model page in ${PANEL}. Then ask me again!`;
   if (!session) { session = newSession(config.provider, config.model); liveBlocks.clear(); agent = null; pruneSessions(); }
@@ -1367,6 +1451,11 @@ function panelState() {
       };
     }),
     loggingIn,
+    // The user's own model servers: what answered, and what it serves.
+    local: {
+      kinds: LOCAL_KINDS,
+      endpoints: endpointsWithModels(localProbes).map((e) => ({ ...e, saved: (config.localEndpoints ?? []).some((s) => s.id === e.id) })),
+    },
     recent: activity.recent,
     usage: usageToday.requests ? { requests: usageToday.requests, tokens: usageToday.tokens } : null,
     facts: listFacts().slice().reverse().map((f) => ({ id: f.id, text: f.text })),
@@ -1552,6 +1641,8 @@ async function onMenu(id) {
   else if (id.startsWith('ttsvoice:')) setTtsVoice(id.slice(9));
   else if (id === 'tts_test') testVoice();
   else if (id === 'tts_voices') loadTtsVoices();
+  else if (id === 'ep-refresh') localEndpointAction({ action: 'refresh' });
+  else if (id.startsWith('ep-remove:')) localEndpointAction({ action: 'remove', id: id.slice(10) });
   else if (id === 'fishkey') ttsKeyLogin();
   else if (id === 'fishkey_remove') removeTtsKey();
   else if (id === 'ttskey_remove') removeTtsKey();
@@ -1702,7 +1793,7 @@ function obState() {
     step: config.onboardStep ?? 0,
     oauth: signInCards(Object.keys(OAUTH), (id) => oauthOn.get(id), PROVIDER_LABELS),
     apikey: keyCards(AUTH_PROVIDERS, (id) => keyOn.get(id)),
-    connected: current && signedIn.get(config.provider) ? { provider: PROVIDER_LABELS[config.provider] ?? config.provider, model: current.name } : null,
+    connected: current && signedIn.get(config.provider) ? { provider: PROVIDER_LABELS[config.provider] ?? config.provider, model: current.name, local: config.provider === LOCAL_PROVIDER } : null,
     keys: keys(),
     actions: config.allowActions,
     login: login.supported ? login.on : null,
@@ -1808,6 +1899,8 @@ createInterface({ input: process.stdin }).on('line', (line) => {
       .catch((e) => panelNote(`That ${label} key didn't work: ${String(e?.message ?? e).slice(0, 80)}`, true));
   } else if (m.type === 'panel_fishkey' && typeof m.key === 'string') ttsKeyLogin({ given: m.key.slice(0, 1000), note: panelNote }).catch((e) => console.error('fish key', e));
   else if (m.type === 'panel_ttskey' && typeof m.key === 'string') ttsKeyLogin({ given: m.key.slice(0, 1000), note: panelNote }).catch((e) => console.error('tts key', e));
+  // A model server: added, changed, forgotten, or looked at again.
+  else if (m.type === 'panel_endpoint' && typeof m.action === 'string') localEndpointAction(m).catch((e) => console.error('local endpoint', e));
   // A field the panel typed: the endpoint, the model or the voice of the engine in use.
   else if (m.type === 'panel_tts' && typeof m.field === 'string' && typeof m.value === 'string') {
     const v = m.value.trim().slice(0, 300);

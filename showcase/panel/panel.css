@@ -238,6 +238,9 @@ html, body { height: 100%; background: transparent; }
 .body select:focus-visible { outline: none; }
 .keyform { display: flex; gap: 6px; }
 .keyform[hidden] { display: none; }
+/* A form with more than one field (a model server): the fields stacked, so each gets a line of its own. */
+.keyform.col { flex-direction: column; align-items: stretch; }
+.keyform.col .field { flex: 0 0 auto; }
 .keykinds { display: grid; gap: 6px; }
 .keykinds[hidden] { display: none; }
 .ok { display: inline-flex; align-items: center; gap: 8px; color: var(--ink-2); font-size: var(--t-body); line-height: 1.25; white-space: nowrap; }

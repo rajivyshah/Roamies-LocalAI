@@ -354,7 +354,11 @@
   const ai = {
     busy: null, loginId: null, status: '', timer: null, mode: 'signin', key: null, keyBusy: null,
     render() {
-      $('ai-lead').textContent = ai.mode === 'key' ? 'Pick where your key is from, then paste it.' : "Sign in with an AI account you have. Using GG Coder? You're already in.";
+      // A model on the user's own computer is already connected: say so, instead of asking for a sign-in.
+      const own = state?.connected?.local;
+      $('ai-lead').textContent = own
+        ? `You're using ${state.connected.model} — a model on your own computer. Change it in the panel any time.`
+        : ai.mode === 'key' ? 'Pick where your key is from, then paste it.' : "Sign in with an AI account you have. Using GG Coder? You're already in.";
       $('providers').hidden = ai.mode !== 'signin';
       $('key-providers').hidden = ai.mode !== 'key';
       $('key-toggle').textContent = ai.mode === 'key' ? 'Sign in instead' : 'Use an API key instead';

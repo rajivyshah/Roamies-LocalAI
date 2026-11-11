@@ -5,7 +5,8 @@ This fork lets you pick who speaks Roamies' replies: **Fish Audio** (the default
 of your own. Fish Audio bills your account per character; the other two can cost nothing at all.
 
 The chat side (which AI answers you) is a separate question, covered at the bottom: the framework Roamies
-is built on already knows how to talk to a local model server, so that one is mostly wiring.
+is built on already knows how to talk to a local model server, and this fork now asks for one — Ollama is
+found by itself, and any other OpenAI-compatible server can be added in the panel's Model page.
 
 ## What is where
 
@@ -18,6 +19,8 @@ is built on already knows how to talk to a local model server, so that one is mo
 | `showcase/tauri/sidecar/speaker.mjs` | Speaks replies — now for any engine, not just Fish |
 | `showcase/panel/panel.js` | The panel's Voice page: engine, model, voice, endpoint, key |
 | `showcase/tauri/sidecar/test/tts.test.mjs` | Tests for all of the above (`npm test`) |
+| `showcase/tauri/sidecar/local.mjs` | Your own model servers: the endpoints, the probe, the model ids |
+| `showcase/tauri/sidecar/test/local.test.mjs` | Tests for the above (`npm test`) |
 
 The audio path itself did not change. The sidecar has always sent 16-bit mono PCM with its sample rate
 (`{ kind: 'speech', id, rate, pcm }`), and the overlay plays whatever rate it is told
@@ -133,18 +136,52 @@ Putting it together is roughly:
 
 ```js
 const { models } = await discoverLocalModels([{ id: 'mybox', label: 'My box', baseUrl: 'http://127.0.0.1:11434/v1', kind: 'ollama' }]);
-const infos = models.map((m) => toModelInfo(m, endpoint));
-registerRuntimeModels(infos);
-setProviderCatalog('local', infos);
+registerRuntimeModels(models);
+setProviderCatalog('local', models);
 await auth.setLocalEndpoint('mybox', 'http://127.0.0.1:11434/v1');   // the credential carries the base URL
 ```
 
 After that `getModel('local/mybox/qwen3:8b')` resolves and `getAuthStorageKeys` returns `local:mybox`, so
 the existing `resolveCredentials({ storageKeys })` path in `sidekick.mjs` picks it up with no new plumbing —
-the same way a local model id resolves today in GG Coder. What is left is the panel's Model page: an
-"Add endpoint" row, the probed model list, and letting `config.model` be a `local/...` id.
+the same way a local model id resolves today in GG Coder.
 
-That part is not implemented in this fork yet.
+### What this fork adds
+
+All of this is implemented here, in `showcase/tauri/sidecar/local.mjs` (the endpoints and the probe) plus
+the wiring in `sidekick.mjs` and the panel.
+
+**The Model page has a "Your own models" group.** Every server is one row: its name, its address, whether
+it answered, and how many models it serves. Under it sit two links — **Add a server** (name, address, kind,
+and a key only if the server asks for one) and **Look again** (probe every server once more).
+
+**The models join the Model dropdown**, under an optgroup named after their server, e.g. `Ollama (your own)`.
+Picking one sets `config.model` to `local/ollama/qwen3.5:2b` and the provider to `local`.
+
+**Ollama is found by itself.** At startup the app probes the servers it knows about (`DEFAULT_LOCAL_ENDPOINTS`
+in gg-core — Ollama) plus every server you added. If the default one answers, it is saved to
+`~/.gg/sidekick.json` (`localEndpoints`) so its models can be picked straight away. Servers you add are
+never saved for you — that is your call to make.
+
+**No cloud account is needed.** With no other provider signed in, `ensureModel()` now counts your own models
+too and picks one of them. The onboarding step says so instead of asking for a sign-in.
+
+**Where the pieces live:**
+
+| Thing | Where |
+| --- | --- |
+| the endpoint list, the probe, the model ids | `showcase/tauri/sidecar/local.mjs` |
+| the wiring (config, credentials, panel state) | `showcase/tauri/sidecar/sidekick.mjs` |
+| the Model page UI | `showcase/panel/panel.js`, `showcase/panel/panel.css` |
+| the tests | `showcase/tauri/sidecar/test/local.test.mjs` |
+
+**Two keys, two places.** gg-core insists that an endpoint's credential live in `~/.gg/auth.json` under
+`local:<id>`, so that is where the address goes (with the placeholder token `"local"` when the server wants
+no key). A key the server *does* demand never goes in a file: it goes to the OS secret store under
+`local-<id>`, and `credsFor()` uses it in place of the placeholder. `~/.gg/sidekick.json` only holds the
+endpoint's name, kind and address.
+
+**Try it:** start Ollama (`ollama serve`, then `ollama pull qwen3.5:2b`), open the panel → Model → Your own
+models. Ollama should be there with its models, already selected.
 
 ## Fork setup, and staying in sync with upstream
 
