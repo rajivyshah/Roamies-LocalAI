@@ -134,13 +134,16 @@ html, body { height: 100%; background: transparent; }
 @keyframes navi-ping { 0% { filter: brightness(1.9); } 100% { filter: none; } }
 
 /* ---------- panes ---------- */
-/* Pages fit the window and never scroll: long lists show a page at a time with arrows in the page's footer. */
+/* Pages fit the window and never scroll: long lists show a page at a time with arrows in the page's footer.
+   A page with more than that (an engine with many models, a model server with a long form) scrolls instead,
+   so nothing is ever out of reach. */
 .body { min-height: 0; overflow: hidden; padding: 4px var(--gut) 0; display: flex; flex-direction: column; }
-.pane { flex: 1 1 0; min-height: 0; display: flex; flex-direction: column; gap: var(--group); padding: 12px 0 var(--gut); }
+.pane { flex: 1 1 0; min-height: 0; display: flex; flex-direction: column; gap: var(--group); padding: 12px 0 var(--gut); overflow-y: auto; }
 .pane.paged { padding-bottom: 0; }
 .pane[hidden] { display: none; }
-/* A paged list takes the room left and shows as many rows as fit there (panel.js measures). */
-.group.paged { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+/* A paged list takes the room left and shows as many rows as fit there (panel.js measures).
+   It keeps a few rows' worth even on a tall page, so the list never vanishes. */
+.group.paged { flex: 1; min-height: 160px; display: flex; flex-direction: column; }
 .pagebox { flex: 1; min-height: 0; overflow: hidden; }
 /* An account: its row, and its key field under it while that's open. */
 .acct { display: grid; gap: 6px; padding: 4px 0; }

@@ -541,8 +541,12 @@
     ] : null;
     const modelRow = t.models?.length ? [
       el('p', { className: 'sub', textContent: 'Voice model' }),
-      picks('Voice model', t.models.map((c) => [c.id, c.name]), t.model, (x) => act(engine === 'fish' ? `fishmodel:${x}` : `ttsmodel:${x}`), 'ttsmodel',
-        Object.fromEntries(t.models.map((c) => [c.id, WHY_LONG[c.id] ?? '']).filter(([, why]) => why))),
+      // A few models go in a row of buttons; many (Gemini has five) go in a dropdown, so the page still fits.
+      t.models.length > 3
+        ? el('span', { className: 'px field select' }, el('select', { 'aria-label': 'Voice model', 'data-k': 'ttsmodel', on: { change: (e) => act(engine === 'fish' ? `fishmodel:${e.target.value}` : `ttsmodel:${e.target.value}`) } },
+            t.models.map((c) => el('option', { value: c.id, textContent: c.name, selected: c.id === t.model }))))
+        : picks('Voice model', t.models.map((c) => [c.id, c.name]), t.model, (x) => act(engine === 'fish' ? `fishmodel:${x}` : `ttsmodel:${x}`), 'ttsmodel',
+            Object.fromEntries(t.models.map((c) => [c.id, WHY_LONG[c.id] ?? '']).filter(([, why]) => why))),
       engine === 'fish' ? el('p', { className: `why${state.fishFree ? ' late' : ''}`, textContent: state.fishFree ? "No credit left, so it's on Fish's free tier" : WHY[t.model] ?? '' }) : null,
     ] : null;
     const voiceRow = t.voices?.length ? [
@@ -848,7 +852,7 @@
     // ?tts=gemini|openai: preview the Voice page with another voice engine.
     if (q.get('tts') === 'gemini') Object.assign(s.tts, {
       provider: 'gemini', label: 'Google Gemini', keyLabel: 'Google AI Studio', key: false, hasKey: false, needsKey: true, needsUrl: false,
-      models: [{ id: 'gemini-3.8-flash-tts', name: 'Gemini 3.8 Flash TTS' }, { id: 'gemini-3.8-flash-lite-tts', name: 'Gemini 3.8 Flash-Lite TTS' }],
+      models: [{ id: 'gemini-3.8-flash-tts', name: 'Gemini 3.8 Flash TTS' }, { id: 'gemini-3.8-flash-lite-tts', name: 'Gemini 3.8 Flash-Lite TTS' }, { id: 'gemini-3.1-flash-tts-preview', name: 'Gemini 3.1 Flash TTS (preview)' }, { id: 'gemini-2.5-flash-preview-tts', name: 'Gemini 2.5 Flash TTS (preview)' }, { id: 'gemini-2.5-pro-preview-tts', name: 'Gemini 2.5 Pro TTS (preview)' }],
       voices: ['Kore', 'Puck', 'Charon', 'Fenrir', 'Aoede', 'Callirrhoe', 'Despina', 'Erinome', 'Algieba', 'Schedar'].map((v) => ({ id: v, name: v })),
       model: 'gemini-3.8-flash-tts', voice: 'Kore',
     });
