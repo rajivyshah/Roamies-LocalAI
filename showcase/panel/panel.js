@@ -491,12 +491,16 @@
     const modelRow = t.models?.length ? [
       el('p', { className: 'sub', textContent: 'Voice model' }),
       picks('Voice model', t.models.map((c) => [c.id, c.name]), t.model, (x) => act(engine === 'fish' ? `fishmodel:${x}` : `ttsmodel:${x}`), 'ttsmodel',
-        Object.fromEntries(t.models.map((c) => [c.id, WHY_LONG[c.id] ?? '']))),
+        Object.fromEntries(t.models.map((c) => [c.id, WHY_LONG[c.id] ?? '']).filter(([, why]) => why))),
       engine === 'fish' ? el('p', { className: `why${state.fishFree ? ' late' : ''}`, textContent: state.fishFree ? "No credit left, so it's on Fish's free tier" : WHY[t.model] ?? '' }) : null,
     ] : null;
     const voiceRow = t.voices?.length ? [
       el('p', { className: 'sub', textContent: 'Voice' }),
-      picks('Voice', t.voices.map((c) => [c.id, c.name]), t.voice, (x) => act(`ttsvoice:${x}`), 'ttsvoice'),
+      // Many voices (Gemini has 30) go in a dropdown; a few go in a row of buttons.
+      t.voices.length > 8
+        ? el('span', { className: 'px field select' }, el('select', { 'aria-label': 'Voice', 'data-k': 'ttsvoice', on: { change: (e) => act(`ttsvoice:${e.target.value}`) } },
+            t.voices.map((c) => el('option', { value: c.id, textContent: c.name, selected: c.id === t.voice }))))
+        : picks('Voice', t.voices.map((c) => [c.id, c.name]), t.voice, (x) => act(`ttsvoice:${x}`), 'ttsvoice'),
     ] : null;
     const freeRow = t.needsUrl ? [
       el('p', { className: 'sub', textContent: 'Endpoint' }),
@@ -783,6 +787,17 @@
       intro: false,
     };
     const q = new URLSearchParams(location.search);
+    // ?tts=gemini|openai: preview the Voice page with another voice engine.
+    if (q.get('tts') === 'gemini') Object.assign(s.tts, {
+      provider: 'gemini', label: 'Google Gemini', keyLabel: 'Google AI Studio', key: false, hasKey: false, needsKey: true, needsUrl: false,
+      models: [{ id: 'gemini-3.8-flash-tts', name: 'Gemini 3.8 Flash TTS' }, { id: 'gemini-3.8-flash-lite-tts', name: 'Gemini 3.8 Flash-Lite TTS' }],
+      voices: ['Kore', 'Puck', 'Charon', 'Fenrir', 'Aoede', 'Callirrhoe', 'Despina', 'Erinome', 'Algieba', 'Schedar'].map((v) => ({ id: v, name: v })),
+      model: 'gemini-3.8-flash-tts', voice: 'Kore',
+    });
+    if (q.get('tts') === 'openai') Object.assign(s.tts, {
+      provider: 'openai', label: 'OpenAI-compatible endpoint', keyLabel: 'Endpoint key', key: true, hasKey: false, needsKey: false, needsUrl: true,
+      models: [], voices: [], model: 'kokoro', voice: 'af_heart', url: 'http://localhost:8880',
+    });
     if (q.has('busy')) Object.assign(s, { busy: true, status: { state: 'busy', text: 'Reading notes.md' } });
     if (q.has('empty')) Object.assign(s, { recent: [], facts: [], commitments: [], usage: null });
     if (q.has('many')) {
