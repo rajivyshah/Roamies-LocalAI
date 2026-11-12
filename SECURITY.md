@@ -1,16 +1,21 @@
 # Security policy
 
-Roamies reads your AI provider API keys and OAuth tokens from your machine (`~/.gg/auth.json`) and runs a
+BitJarvis reads your AI provider API keys and OAuth tokens from your machine (`~/.gg/auth.json`) and runs a
 local agent that can take screenshots, read windows and read files, and, if you turn
 them on, click and type in other apps, write files and run commands. Security reports are taken seriously.
 
+BitJarvis is a fork of [Roamies](https://github.com/KenKaiii/Roamies) by Ken Kai. Reports about the bits this
+fork added (the extra voice engines, the local model endpoints, the updater and the release pipeline) go to the
+repository below; reports about the original app go to
+[Ken Kai's repository](https://github.com/KenKaiii/Roamies/security/advisories/new).
+
 ## Supported versions
 
-Only the latest release gets security fixes: [latest GitHub release](https://github.com/KenKaiii/Roamies/releases/latest).
+Only the latest release gets security fixes: [latest GitHub release](https://github.com/rajivyshah/Roamies-LocalAI/releases/latest).
 
 ## Reporting a vulnerability
 
-Please **do not open a public issue**. Report privately through [GitHub security advisories](https://github.com/KenKaiii/Roamies/security/advisories/new).
+Please **do not open a public issue**. Report privately through [GitHub security advisories](https://github.com/rajivyshah/Roamies-LocalAI/security/advisories/new).
 
 Include:
 

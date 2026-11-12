@@ -102,24 +102,30 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           VER=$(node -p "require('./src-tauri/tauri.conf.json').version")
+          NAME=$(node -p "require('./src-tauri/tauri.conf.json').productName")
           TAG="v${VER}"
           # Published, not a draft: the updater reads the newest published release.
-          gh release view "$TAG" >/dev/null 2>&1 || gh release create "$TAG" --title "Roamies $TAG" --generate-notes
+          gh release view "$TAG" >/dev/null 2>&1 || gh release create "$TAG" --title "$NAME $TAG" --generate-notes
           B=src-tauri/target/x86_64-pc-windows-msvc/release/bundle
           files=($B/nsis/*-setup.exe $B/nsis/*-setup.exe.sig)
           [ ${#files[@]} -gt 0 ] || { echo "No installer was built"; exit 1; }
           gh release upload "$TAG" "${files[@]}" --clobber
+          # The AGPL asks that the source of a distributed build travels with it. The source of this
+          # exact build is this commit, so it is archived and attached to the release next to the
+          # installer (AGPL-3.0 section 6).
+          git archive --format=zip --prefix="${NAME}-${VER}/" -o "${NAME}_${VER}_source.zip" HEAD
+          gh release upload "$TAG" "${NAME}_${VER}_source.zip" --clobber
           # latest.json: the feed the in-app updater reads. Download links go through the API (the updater
           # asks for the file itself); GitHub's public release links have timed out while the API worked.
           mkdir -p sigs && gh release download "$TAG" -p '*.sig' -D sigs
           gh release view "$TAG" --json assets > assets.json
-          VER="$VER" node -e '
-            const fs = require("fs"), { VER } = process.env;
-            const f = `Roamies_${VER}_x64-setup.exe`;
+          VER="$VER" NAME="$NAME" node -e '
+            const fs = require("fs"), { VER, NAME } = process.env;
+            const f = `${NAME}_${VER}_x64-setup.exe`;
             const sig = fs.readFileSync("sigs/" + f + ".sig", "utf8").trim();
             const api = Object.fromEntries(JSON.parse(fs.readFileSync("assets.json", "utf8")).assets.map((a) => [a.name, a.apiUrl]));
             if (!api[f]) throw new Error(`${f} is not on the release`);
-            const out = { version: VER, notes: `Roamies ${VER}`, pub_date: new Date().toISOString(), platforms: {} };
+            const out = { version: VER, notes: `${NAME} ${VER}`, pub_date: new Date().toISOString(), platforms: {} };
             out.platforms["windows-x86_64"] = { signature: sig, url: api[f] };
             fs.writeFileSync("latest.json", JSON.stringify(out, null, 2));
           '

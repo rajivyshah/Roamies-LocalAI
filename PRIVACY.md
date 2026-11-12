@@ -2,8 +2,11 @@
 
 Effective date: 10 November 2026
 
-Roamies is an open-source desktop app made by an individual developer. This page says, in plain words, what
-data Roamies handles and where it goes.
+BitJarvis is an open-source desktop app made by an individual developer. This page says, in plain words, what
+data BitJarvis handles and where it goes.
+
+BitJarvis is a fork of Roamies by Ken Kai; see [NOTICE.md](NOTICE.md). The two apps handle data the same way,
+except for the extra speech and model endpoints this fork adds (described below).
 
 ## The short version
 
@@ -18,12 +21,21 @@ key) receives:
 
 - your messages and the conversation so far
 - a "live state" block: the date and time, your time zone, the name or title of the app and window in front,
-  and the facts and commitments Roamies has saved in memory
-- screenshots or window text, when Roamies looks at your screen to answer
+  and the facts and commitments BitJarvis has saved in memory
+- screenshots or window text, when BitJarvis looks at your screen to answer
 
 **Fish Audio** receives the text of each reply to speak it, only if spoken replies are on. It uses your own key.
 
-**GitHub** is used to check for and download updates.
+**The speech engine you pick in this fork's Voice page** also receives the text of each reply, only when spoken
+replies are on: Gemini TTS (Google, with your own API key), or any OpenAI-compatible speech endpoint you set —
+including one running on your own computer. Your own endpoint's privacy policy is your own.
+
+**A model server on your own computer** (Ollama, LM Studio, or any OpenAI-compatible endpoint you add) receives
+your messages and stays on your machine: nothing about your conversation is sent anywhere else while it is the
+model in use.
+
+**GitHub** is used to check for and download updates — from this project's own releases, not the original
+project's.
 
 **Hugging Face** is used once, on Windows and Linux, to download the speech model.
 
@@ -41,7 +53,7 @@ Each provider's own privacy policy applies to what is sent to it.
 - **Windows and Linux:** speech is turned into text on your computer (Parakeet).
 - The microphone is used only while you hold the talk keys (or, on Linux with Wayland, from your talk shortcut
   until you press it again or pause).
-- The screen is captured only when Roamies answers something about your screen, or when you mark an area. On Linux
+- The screen is captured only when BitJarvis answers something about your screen, or when you mark an area. On Linux
   with Wayland it's taken through your desktop's screenshot portal; the copy the portal saves is deleted right away.
 
 ## What's stored on your computer
@@ -51,7 +63,7 @@ Everything lives in `~/.gg` (on Windows, `%USERPROFILE%\.gg`) and stays on your 
 | File or folder           | What's in it                                                                        |
 | ------------------------ | ----------------------------------------------------------------------------------- |
 | `sidekick.json`          | your settings                                                                       |
-| `sidekick/memory.json`   | facts Roamies learned and your commitments                                          |
+| `sidekick/memory.json`   | facts BitJarvis learned and your commitments                                          |
 | `sidekick/sessions/`     | conversations (the newest 60 are kept)                                              |
 | `sidekick/logs/`         | activity logs: tool names, timings, errors and short snippets of tool results (such as a line of window or page text); text you type into apps or files is reduced to its length; kept 7 days |
 | `sidekick/usage.jsonl`   | token counts and timings only, never content                                       |
@@ -66,7 +78,7 @@ GitHub issue).
 Your Fish Audio key is kept in the macOS Keychain, encrypted with DPAPI on Windows, or in your desktop's keyring
 (through the Secret Service) on Linux.
 
-You can see what Roamies remembers on the panel's **Memory** page, and remove it with **Forget** or
+You can see what BitJarvis remembers on the panel's **Memory** page, and remove it with **Forget** or
 **Forget Everything**.
 
 ## Deleting everything
@@ -75,7 +87,7 @@ Follow the [Uninstall](README.md#uninstall) steps in the README.
 
 ## Children
 
-Roamies isn't made for children under 13 (or the minimum age in their country), and it doesn't ask about age.
+BitJarvis isn't made for children under 13 (or the minimum age in their country), and it doesn't ask about age.
 Parents should supervise any use by children.
 
 ## Changes
@@ -84,4 +96,5 @@ Changes to this notice are made in this file on GitHub, so its history shows wha
 
 ## Questions
 
-Email [ken@kenkais.com](mailto:ken@kenkais.com) or [open an issue](https://github.com/KenKaiii/Roamies/issues).
+Open an issue at <https://github.com/rajivyshah/Roamies-LocalAI/issues>. Questions about the original Roamies
+go to Ken Kai: <https://github.com/KenKaiii/Roamies/issues> or [ken@kenkais.com](mailto:ken@kenkais.com).
