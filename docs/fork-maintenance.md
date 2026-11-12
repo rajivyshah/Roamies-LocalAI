@@ -68,9 +68,15 @@ wired, those tests fail loudly instead of the app quietly losing a feature.
 
 ## Publishing your own releases
 
-Your fork keeps the upstream release workflow, plus one of its own that builds only what a fork can
-sign. `release-windows.yml` builds the Windows installer, signs it with your key, publishes it to
-your fork and writes the `latest.json` the updater reads.
+Your fork keeps the upstream release workflow, plus two of its own. `release-windows.yml` builds the
+Windows installer, signs it with your key, publishes it to your fork and writes the `latest.json` the
+updater reads. `ci-fork.yml` runs the tests and a build on every branch, so a change that came in
+from upstream is checked before it is released.
+
+> A fork does **not** run the workflows it inherits from the repository it was forked from: only the
+> workflows this fork adds itself (with their own file names) are active. That is why the release and
+> the CI above are files of their own, and why the release writes the `updates` branch itself instead
+> of leaving it to upstream's `update-feed.yml`.
 
 To publish one:
 

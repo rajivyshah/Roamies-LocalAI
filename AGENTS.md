@@ -33,6 +33,12 @@ macOS DMG (Apple silicon and Intel), an unsigned Windows installer and the Linux
 Ubuntu 24.04 because ONNX Runtime needs glibc 2.38) into a draft GitHub release. The Linux leg may fail without
 stopping the release; `latest.json` lists Linux only when its AppImage is there.
 
+This fork's own releases are separate: push a `fork-v*` tag to run `.github/workflows/release-windows.yml`, which
+builds and signs the Windows installer, publishes the release and writes `latest.json` (and the `updates` branch
+copy) for this fork's updater. A fork does not run the workflows it inherits, so `ci-fork.yml` is this fork's own
+CI (sidecar tests, inline-node check, build, helper tests) on every branch; `sync-upstream.sh` and
+`docs/fork-maintenance.md` are the playbook for taking Ken's changes in.
+
 ## Rules
 
 - Every tool that touches files, commands, URLs or other apps goes through `showcase/tauri/sidecar/safety.mjs`
