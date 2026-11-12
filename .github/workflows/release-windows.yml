@@ -125,3 +125,23 @@ jobs:
           '
           cat latest.json
           gh release upload "$TAG" latest.json --clobber
+
+      # The updater's second address: the same latest.json on the `updates` branch, served by
+      # raw.githubusercontent.com. The updater falls back to it when GitHub's release links time out
+      # (they have, for hours, while the API kept working). Upstream's own update-feed.yml does this
+      # on a release event, but a fork does not run the workflows it inherits, so this workflow
+      # publishes the branch itself.
+      - name: Publish the update feed to the updates branch
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="v$(node -p "require('./src-tauri/tauri.conf.json').version")"
+          mkdir -p feed && cp latest.json feed/latest.json
+          # Only a feed the updater can read goes out.
+          node -e 'const j = JSON.parse(require("fs").readFileSync("feed/latest.json", "utf8")); if (!j.version || !Object.keys(j.platforms ?? {}).length) process.exit(1)'
+          cd feed
+          git init -q -b updates
+          git -c user.name="github-actions[bot]" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" add latest.json
+          git -c user.name="github-actions[bot]" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" commit -qm "Update feed: $TAG"
+          git push -f "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" HEAD:updates
+          echo "updates branch now serves $TAG"

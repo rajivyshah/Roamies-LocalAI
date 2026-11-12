@@ -1,0 +1,80 @@
+# This fork's own CI.
+#
+# A fork does not run the workflows it inherits from the repository it was forked from, and the upstream
+# ci.yml is a three-OS matrix (this fork ships Windows builds only, and has no Apple certificate). So the
+# checks upstream runs are kept here, on Windows: the sidecar's tests, the app shell's tests, the inline node
+# scripts in the workflows, and a full build.
+#
+# It runs on every branch of this fork, so a change that comes in from upstream (see sync-upstream.sh) is
+# tested here before it is released.
+name: CI (fork)
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+    branches: ['**']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: windows-latest
+    timeout-minutes: 45
+    defaults:
+      run:
+        shell: bash
+        working-directory: showcase/tauri
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: showcase/tauri/sidecar/package-lock.json
+
+      - name: Install sidecar dependencies
+        working-directory: showcase/tauri/sidecar
+        run: npm ci
+
+      - name: Test sidecar
+        working-directory: showcase/tauri/sidecar
+        run: npm test
+
+      - name: Check the workflows' inline node scripts
+        working-directory: ${{ github.workspace }}
+        run: node .github/scripts/check-inline-node.mjs
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-pc-windows-msvc
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            showcase/tauri/src-tauri -> target
+            showcase/tauri/src-tauri/voice-win -> target
+            showcase/tauri/src-tauri/hands-win -> target
+          key: x86_64-pc-windows-msvc
+
+      # Copies the web files into dist/, bundles the sidecar, builds the Windows helpers, then `cargo build`.
+      - name: Build
+        run: ./build.sh dev
+
+      - name: Test the app shell
+        run: cargo test --locked --manifest-path src-tauri/Cargo.toml
+
+      - name: Test the Windows voice helper
+        run: cargo test --release --locked --manifest-path src-tauri/voice-win/Cargo.toml --target x86_64-pc-windows-msvc
+
+      # The hands helper's logic (logic.rs) builds and is tested anywhere; on Windows it also runs its self-test.
+      - name: Test the Windows hands helper
+        run: |
+          cargo test --release --locked --manifest-path src-tauri/hands-win/Cargo.toml --target x86_64-pc-windows-msvc
+          src-tauri/binaries/roamies-hands-x86_64-pc-windows-msvc.exe --self-test
