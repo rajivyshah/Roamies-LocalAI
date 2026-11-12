@@ -32,7 +32,7 @@ final class Wave {
         panel.level = NSWindow.Level(rawValue: NSWindow.Level.popUpMenu.rawValue + 1)
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary, .ignoresCycle]
         panel.alphaValue = 0
-        panel.setAccessibilityLabel("Roamies is listening")
+        panel.setAccessibilityLabel("BitJarvis is listening")
 
         let view = NSView(frame: NSRect(origin: .zero, size: size))
         view.wantsLayer = true
@@ -59,7 +59,7 @@ final class Wave {
         panel.contentView = view
     }
 
-    /// The Roamies pixel frame: corners cut in two 2-pt steps (same as the setup guide's .px boxes).
+    /// The BitJarvis pixel frame: corners cut in two 2-pt steps (same as the setup guide's .px boxes).
     private static func pixelPill(_ r: CGRect) -> CGPath {
         let s: CGFloat = 2, (x0, y0, x1, y1) = (r.minX, r.minY, r.maxX, r.maxY)
         let pts: [(CGFloat, CGFloat)] = [

@@ -1,11 +1,11 @@
 name: Feature request
-description: Suggest an idea for Roamies.
+description: Suggest an idea for BitJarvis.
 labels: [enhancement]
 body:
   - type: textarea
     id: problem
     attributes:
-      label: What would you like Roamies to do?
+      label: What would you like BitJarvis to do?
     validations:
       required: true
   - type: textarea

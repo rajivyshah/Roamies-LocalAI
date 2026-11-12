@@ -1,4 +1,4 @@
-// Hands helper for Roamies on Windows, the twin of hands/main.swift: lets the agent see one window or app, read its
+// Hands helper for BitJarvis on Windows, the twin of hands/main.swift: lets the agent see one window or app, read its
 // controls and work them. Same commands, same JSON: one command per run, one JSON object on stdout, live progress as
 // "@"-prefixed JSON lines on stderr.
 //
@@ -105,7 +105,7 @@ fn windows_main(cmd: &str, args: &[String]) -> ! {
             }).collect();
             out(json!({ "ok": true, "windows": list }))
         }
-        // Where the user is right now: the app in front (never Roamies), its window's title, and a browser's address.
+        // Where the user is right now: the app in front (never BitJarvis), its window's title, and a browser's address.
         "front" => {
             let mut o = json!({ "ok": true });
             let Some(w) = resolve("front") else { out(o) };

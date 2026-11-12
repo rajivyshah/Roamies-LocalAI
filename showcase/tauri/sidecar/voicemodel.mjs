@@ -22,7 +22,8 @@ export const totalBytes = (model = MODEL) => model.files.reduce((n, f) => n + f.
 export const sizeLabel = (model = MODEL) => `${Math.round(totalBytes(model) / 1e6)} MB`;
 
 export function modelDir(model = MODEL) {
-  const root = process.env.LOCALAPPDATA ? path.join(process.env.LOCALAPPDATA, 'Roamies') : path.join(os.homedir(), '.gg', 'sidekick');
+  // The app's own folder on Windows (where the model lives): %LOCALAPPDATA%\<product>.
+  const root = process.env.LOCALAPPDATA ? path.join(process.env.LOCALAPPDATA, 'BitJarvis') : path.join(os.homedir(), '.gg', 'sidekick');
   return path.join(root, 'models', model.id);
 }
 

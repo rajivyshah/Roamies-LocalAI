@@ -76,7 +76,7 @@ import { createSecrets, retryLoad, runInput } from '../secrets.mjs';
   assert.ok(calls.every((c) => c.cmd === 'secret-tool' && !c.args.join(' ').includes('SECRET')), 'never in argv');
   const store = calls.find((c) => c.args[0] === 'store');
   assert.equal(store.input, 'sk-fish-SECRET', 'on stdin, with no newline added');
-  assert.deepEqual(store.args, ['store', '--label', 'Roamies: fish-audio', 'service', 'com.kenkai.roamies', 'account', 'fish-audio']);
+  assert.deepEqual(store.args, ['store', '--label', 'BitJarvis: fish-audio', 'service', 'com.kenkai.roamies', 'account', 'fish-audio']);
   await s.delete('fish-audio');
   assert.equal(await s.get('fish-audio'), null);
   await assert.rejects(s.get('../etc'), /bad secret name/);

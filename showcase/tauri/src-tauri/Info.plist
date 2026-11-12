@@ -6,16 +6,16 @@
   <key>LSUIElement</key>
   <true/>
   <key>NSMicrophoneUsageDescription</key>
-  <string>Roamies listens while you hold your talk shortcut.</string>
+  <string>BitJarvis listens while you hold your talk shortcut.</string>
   <key>NSSpeechRecognitionUsageDescription</key>
-  <string>Roamies turns what you say into text, on your Mac.</string>
+  <string>BitJarvis turns what you say into text, on your Mac.</string>
   <key>NSDesktopFolderUsageDescription</key>
-  <string>Roamies reads files on your Desktop when you ask it to.</string>
+  <string>BitJarvis reads files on your Desktop when you ask it to.</string>
   <key>NSDocumentsFolderUsageDescription</key>
-  <string>Roamies reads files in Documents when you ask it to.</string>
+  <string>BitJarvis reads files in Documents when you ask it to.</string>
   <key>NSDownloadsFolderUsageDescription</key>
-  <string>Roamies reads files in Downloads when you ask it to.</string>
+  <string>BitJarvis reads files in Downloads when you ask it to.</string>
   <key>NSScreenCaptureUsageDescription</key>
-  <string>Roamies looks at your screen when you ask it to.</string>
+  <string>BitJarvis looks at your screen when you ask it to.</string>
 </dict>
 </plist>

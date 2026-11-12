@@ -88,8 +88,8 @@
         rows: ['...hhh', '..hhHH', '.hhhhh', '.hssss', 'zsssss', '.sssss', '.hhsss', '..hhhh', '..CCck'],
       },
     },
-    // Ken Kai, who made Roamies (shown on the About page, not a look): a textured dark fringe over faded sides,
-    // and a hoodie with its drawstrings.
+    // Ken Kai, who made Roamies, the app this fork is based on (shown on the About page, not a look):
+    // a textured dark fringe over faded sides, and a hoodie with its drawstrings.
     ken: {
       L: {
         w: 29, cy: 14, fade: 5, eye: [2, 12], mouth: 18,

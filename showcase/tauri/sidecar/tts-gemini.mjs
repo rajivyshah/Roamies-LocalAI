@@ -1,4 +1,4 @@
-// Google Gemini's text-to-speech: Roamies' replies in a Gemini voice.
+// Google Gemini's text-to-speech: BitJarvis' replies in a Gemini voice.
 //
 // One request per sentence, sent as soon as the sentence is ready, so the reply starts talking while the
 // rest is still being written. Gemini answers with the audio as base64 PCM (16-bit, 24 kHz, mono), which

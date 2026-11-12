@@ -110,7 +110,7 @@ if [ "$INSTALL" = "1" ]; then
     Darwin)
       DMG="$(ls -1 showcase/tauri/src-tauri/target/release/bundle/dmg/*.dmg 2>/dev/null | head -1)"
       [ -n "$DMG" ] || { echo "No disk image found." >&2; exit 1; }
-      open "$DMG"; echo "Drag Roamies onto Applications to finish." ;;
+      open "$DMG"; echo "Drag BitJarvis onto Applications to finish." ;;
     *) echo "Install it by hand from showcase/tauri/src-tauri/target/release/bundle/." ;;
   esac
 fi

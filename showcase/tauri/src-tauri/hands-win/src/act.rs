@@ -943,7 +943,7 @@ pub fn act(arg: &str) -> ! {
         crate::fail(&format!("Blocked for safety: I can point at things in {name}, but I never type or click in it. Show the user where to click instead."));
     }
     if elevated_above_me(w.pid) {
-        crate::fail(&format!("{} is running as administrator, so Windows doesn't let Roamies type or click in it. Show the user where to click instead.", w.app));
+        crate::fail(&format!("{} is running as administrator, so Windows doesn't let BitJarvis type or click in it. Show the user where to click instead.", w.app));
     }
     let bg = std::env::var("ROAMIES_BG").as_deref() != Ok("0");
     {
@@ -951,7 +951,7 @@ pub fn act(arg: &str) -> ! {
         b.bg = bg;
         b.win = Some(w.clone());
     }
-    // Not in background mode: bring the app forward first so keystrokes land there, not in Roamies.
+    // Not in background mode: bring the app forward first so keystrokes land there, not in BitJarvis.
     if !bg && !bring_to_front(&w) {
         out(json!({ "ok": false, "error": format!("Couldn't bring {} to the front, so nothing was typed or clicked. Ask the user to click its window once, then try again.", w.app), "done": [] }));
     }

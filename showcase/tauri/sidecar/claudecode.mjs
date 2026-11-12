@@ -1,6 +1,6 @@
 // "Sign in with Claude" runs replies through Claude Code: it drives the model loop with our system prompt, and our
 // tools are served to it as an in-process MCP server. Ported from GG Coder's core/claude-code (loop, events,
-// tool-bridge), cut to what Roamies uses. ClaudeCodeAgent has the surface sidekick.mjs uses of gg-agent's Agent.
+// tool-bridge), cut to what BitJarvis uses. ClaudeCodeAgent has the surface sidekick.mjs uses of gg-agent's Agent.
 import { query as sdkQuery, startup as sdkStartup } from '@anthropic-ai/claude-agent-sdk';
 import { AgentStream, argumentHints, capToolResults, unknownToolMessage } from '@kenkaiiii/gg-agent';
 import { environmentSecrets, redactValue, resolveToolSchema } from '@kenkaiiii/gg-ai';
@@ -352,7 +352,7 @@ function sdkOptions(o, resume, link) {
     strictMcpConfig: true,
     mcpServers: { [MCP_SERVER]: bridge.config },
     allowedTools: bridge.allowedTools(),
-    canUseTool: async (name, toolInput) => (name.startsWith(TOOL_PREFIX) ? { behavior: 'allow', updatedInput: toolInput } : { behavior: 'deny', message: `${name} is not available in Roamies.` }),
+    canUseTool: async (name, toolInput) => (name.startsWith(TOOL_PREFIX) ? { behavior: 'allow', updatedInput: toolInput } : { behavior: 'deny', message: `${name} is not available in BitJarvis.` }),
     includePartialMessages: true,
     pathToClaudeCodeExecutable: o.executable,
     env: o.env,

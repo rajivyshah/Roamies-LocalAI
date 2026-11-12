@@ -1,7 +1,7 @@
-// Voice engines: who speaks Roamies' replies.
+// Voice engines: who speaks BitJarvis' replies.
 //
 // Fish Audio was the only one for a long time. The user can now pick Google Gemini's text-to-speech
-// or any OpenAI-compatible speech endpoint (a local Kokoro, Piper, ...), and Roamies talks in that voice.
+// or any OpenAI-compatible speech endpoint (a local Kokoro, Piper, ...), and BitJarvis talks in that voice.
 //
 // Every engine has the same shape, so the speaker (speaker.mjs) never asks which one it has:
 //   {

@@ -58,7 +58,7 @@ export const hasVoice = (platform) => platform === 'darwin' || platform === 'win
 export const needsVoiceModel = (platform) => platform === 'win32' || platform === 'linux';
 
 /** Whether the hands helper's tools are on: always on macOS (they explain what's missing), elsewhere when the
- *  helper is there (Roamies sets ROAMIES_HANDS to it). */
+ *  helper is there (BitJarvis sets ROAMIES_HANDS to it). */
 export const hasHands = (platform, hands) => platform === 'darwin' || !!hands;
 
 /** Ask About an Area (the snap shortcut and menu item): the helper's area selection, on macOS and Windows.

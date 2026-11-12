@@ -1,4 +1,4 @@
-// Voice helper for Roamies on Windows and Linux: the twin of voice/main.swift, with the same JSON lines in and out.
+// Voice helper for BitJarvis on Windows and Linux: the twin of voice/main.swift, with the same JSON lines in and out.
 // Watches the talk chord (GetAsyncKeyState on Windows, the X server on Linux X11 sessions; neither needs a
 // permission), records the default microphone and
 // transcribes on this PC with NVIDIA Parakeet TDT 0.6B v3 (int8 ONNX via parakeet-rs). Parakeet isn't a
@@ -9,7 +9,7 @@
 // (sent for `roamies --talk`, which people bind to a key) starts a take, and sends it when it comes again or on a
 // pause. Exits when stdin closes.
 //
-// roamies-voice --model <dir> [--chord control,option]   normal use (Roamies starts it)
+// roamies-voice --model <dir> [--chord control,option]   normal use (BitJarvis starts it)
 // roamies-voice --perms                                   prints {"type":"perms","mic":…}
 // roamies-voice --devices                                 prints {"type":"devices",…}: every mic, the default, formats
 // roamies-voice --model <dir> --transcribe <wav>          dev: transcribe a file and exit
@@ -529,7 +529,7 @@ impl Voice {
         }
     }
 
-    /// Roamies saw its show/hide shortcut: that chord press was a shortcut, not a request to talk.
+    /// BitJarvis saw its show/hide shortcut: that chord press was a shortcut, not a request to talk.
     fn external_cancel(&mut self) {
         if matches!(self.phase, Phase::Armed | Phase::Holding | Phase::HandsFree) {
             self.cancel();
@@ -537,7 +537,7 @@ impl Voice {
         self.blocked = true;
     }
 
-    /// Returns true when Roamies has gone (stdin closed) and the helper should exit.
+    /// Returns true when BitJarvis has gone (stdin closed) and the helper should exit.
     fn handle(&mut self, ev: Ev) -> bool {
         match ev {
             Ev::Cmd(msg) => match msg.get("cmd").and_then(Value::as_str) {

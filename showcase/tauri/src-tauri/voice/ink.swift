@@ -350,7 +350,7 @@ final class Ink {
         let pen = CGWindowID(panel.windowNumber)
         // A beat first, so windows hidden for the shot (the listening pill) are off screen.
         DispatchQueue.global(qos: .userInitiated).asyncAfter(deadline: .now() + 0.06) {
-            // Without Roamies in it, but with the pen strokes (shared/shot.swift); older macOS: screencapture.
+            // Without BitJarvis in it, but with the pen strokes (shared/shot.swift); older macOS: screencapture.
             var ok = Shot.capture(rect, to: file, png: true, keep: [pen]) != nil
             if !ok {
                 let p = Process()

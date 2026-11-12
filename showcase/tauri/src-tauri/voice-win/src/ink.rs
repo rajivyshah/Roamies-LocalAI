@@ -2,7 +2,7 @@
 // followed; a stroke counts only once it closes round something: it snaps shut and stays. One circle per talk. Lines
 // and scribbles that never close fade and are never sent. The overlay draws the trail ({"type":"ink"} messages, in
 // screen points: physical pixels ÷ that monitor's scale, the overlays' units). When the talk ends, the circled part
-// of the screen is captured (without Roamies' overlays, which are left out of captures) with the strokes drawn onto
+// of the screen is captured (without BitJarvis' overlays, which are left out of captures) with the strokes drawn onto
 // the picture here, and sent with what was said as `area`, exactly like macOS.
 use serde_json::{json, Value};
 

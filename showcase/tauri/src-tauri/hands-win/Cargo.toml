@@ -1,4 +1,4 @@
-# Hands helper for Roamies on Windows (the twin of hands/main.swift on macOS): the same commands and the same
+# Hands helper for BitJarvis on Windows (the twin of hands/main.swift on macOS): the same commands and the same
 # JSON. Built by build.sh and bundled as binaries/roamies-hands-<target>.exe. Only logic.rs builds elsewhere,
 # so `cargo test` runs its checks on any system.
 [package]

@@ -1,5 +1,5 @@
 name: Bug report
-description: Something in Roamies isn't working right.
+description: Something in BitJarvis isn't working right.
 labels: [bug]
 body:
   - type: textarea
@@ -24,7 +24,7 @@ body:
   - type: input
     id: version
     attributes:
-      label: Roamies version
+      label: BitJarvis version
       description: Find it in the panel > About.
     validations:
       required: true
@@ -44,4 +44,4 @@ body:
     id: logs
     attributes:
       label: Diagnostics file
-      description: In Roamies, open the panel > About > Save diagnostics (or the tray icon's menu > Save Diagnostics…). It saves a roamies-diagnostics-….log file in Downloads with keys and personal details removed. Drag that file into this box.
+      description: In BitJarvis, open the panel > About > Save diagnostics (or the tray icon's menu > Save Diagnostics…). It saves a roamies-diagnostics-….log file in Downloads with keys and personal details removed. Drag that file into this box.

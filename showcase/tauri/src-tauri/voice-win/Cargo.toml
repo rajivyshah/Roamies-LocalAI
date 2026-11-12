@@ -1,4 +1,4 @@
-# Voice helper for Roamies on Windows and Linux (the twin of voice/main.swift on macOS). Built by build.sh and
+# Voice helper for BitJarvis on Windows and Linux (the twin of voice/main.swift on macOS). Built by build.sh and
 # bundled as binaries/roamies-voice-<target>[.exe]. Compiles on macOS too (no mic or hotkey there), so the
 # transcription and the session logic can be tested anywhere.
 [package]

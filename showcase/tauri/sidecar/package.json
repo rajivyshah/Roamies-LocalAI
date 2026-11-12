@@ -1,6 +1,6 @@
 {
   "name": "roamies-sidekick",
-  "description": "The Roamies agent: a Node sidecar for the Roamies desktop app",
+  "description": "The BitJarvis agent: a Node sidecar for the BitJarvis desktop app",
   "private": true,
   "license": "AGPL-3.0-only",
   "repository": {

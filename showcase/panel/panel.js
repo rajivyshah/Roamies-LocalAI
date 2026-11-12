@@ -138,11 +138,11 @@
     const u = state.update, b = $('head-update'), v = u.available;
     const fresh = u.result?.ok && Date.now() - (u.result.at ?? 0) < FRESH;
     const [label, aria, kind, off] =
-      u.done ? ['Done', `Roamies ${u.done} is installed. Restarting`, 'ghost', true]
-      : u.installing ? ['Updating…', `Installing Roamies ${v}`, 'ghost', true]
-      : v ? (u.page ? [`Get ${v}`, `Open the download page for Roamies ${v}`, 'primary', false] : [`Update to ${v}`, `Install Roamies ${v} and restart`, 'primary', false])
+      u.done ? ['Done', `BitJarvis ${u.done} is installed. Restarting`, 'ghost', true]
+      : u.installing ? ['Updating…', `Installing BitJarvis ${v}`, 'ghost', true]
+      : v ? (u.page ? [`Get ${v}`, `Open the download page for BitJarvis ${v}`, 'primary', false] : [`Update to ${v}`, `Install BitJarvis ${v} and restart`, 'primary', false])
       : u.checking ? ['Checking…', 'Checking for updates', 'ghost', true]
-      : fresh ? ['Up to date', `Roamies ${state.version} is up to date`, 'ghost', true]
+      : fresh ? ['Up to date', `BitJarvis ${state.version} is up to date`, 'ghost', true]
       : u.result ? ['Check again', "Couldn't check for updates. Check again", 'ghost', false]
       : ['Check for updates', 'Check for updates', 'ghost', false];
     b.hidden = false; b.textContent = label; b.disabled = off;
@@ -156,10 +156,10 @@
   // Quit asks first: the first press turns it into Confirm for 4 s, the second quits.
   const quitB = $('head-quit');
   let quitTimer = 0;
-  const unarmQuit = () => { clearTimeout(quitTimer); quitB.setAttribute('aria-pressed', 'false'); quitB.setAttribute('aria-label', 'Quit Roamies'); };
+  const unarmQuit = () => { clearTimeout(quitTimer); quitB.setAttribute('aria-pressed', 'false'); quitB.setAttribute('aria-label', 'Quit BitJarvis'); };
   quitB.addEventListener('click', () => {
     if (quitB.getAttribute('aria-pressed') === 'true') { unarmQuit(); act('quit'); return; }
-    quitB.setAttribute('aria-pressed', 'true'); quitB.setAttribute('aria-label', 'Confirm: quit Roamies');
+    quitB.setAttribute('aria-pressed', 'true'); quitB.setAttribute('aria-label', 'Confirm: quit BitJarvis');
     quitTimer = setTimeout(unarmQuit, 4000);
   });
   function mark(page, why) {
@@ -255,7 +255,7 @@
     if (seen.look && state.look !== seen.look) { avatar.setLook(state.look); avatar.act('wave'); quip(QUIPS[state.look] ?? 'Hi!'); }
     else avatar.setLook(state.look);
     avatar.setForm(state.size);
-    if (state.update.available && state.update.available !== seen.update && seen.look) { avatar.act('hype'); quip(`Roamies ${state.update.available} is here!`); }
+    if (state.update.available && state.update.available !== seen.update && seen.look) { avatar.act('hype'); quip(`BitJarvis ${state.update.available} is here!`); }
     seen.look = state.look; seen.update = state.update.available;
   }
 
@@ -526,7 +526,7 @@
       el('span', { className: 'row-btns' }, el('span', { className: 'px field' }, input)));
   }
   const ENGINE_TIP = {
-    fish: 'The voices Roamies shipped with. Billed to your Fish Audio account.',
+    fish: 'The voices BitJarvis shipped with. Billed to your Fish Audio account.',
     gemini: "Google Gemini's text-to-speech. It uses your Google AI Studio key, the same one as for chat.",
     openai: 'Your own OpenAI-compatible speech endpoint: a local Kokoro or Piper, or a server of yours. Free to run locally.',
   };
@@ -622,32 +622,35 @@
           link('Copy', () => send({ type: 'copy_bind', which: k }), { k: `bind-${k}`, aria: `Copy the command for ${label.toLowerCase()}` })))) : null,
     ];
   }
-  // Who made Roamies: Ken, live (he's drawn like the looks but isn't one), and where to find him.
-  const KEN = [
-    ['Skool', 'Learn with Ken, or support him', 'https://www.skool.com/kenkai', "Open Ken Kai's Skool community"],
-    ['YouTube', '@kenkaidoesai', 'https://www.youtube.com/@kenkaidoesai', "Open Ken Kai's YouTube channel"],
-    ['TikTok', '@ggkenkai', 'https://www.tiktok.com/@ggkenkai', "Open Ken Kai's TikTok"],
-    ['Source code', 'Open source under AGPL-3.0', 'https://github.com/rajivyshah/Roamies-LocalAI', 'Open the Roamies source code on GitHub'],
+  // Who made BitJarvis: the owner, live (he's drawn like the looks but isn't one), and where to find him.
+  // The source link points at the release of the version you are running: the AGPL asks for the source of
+  // the build you have, and that release carries it (BitJarvis_<version>_source.zip).
+  const OWNER = [
+    ['Source code', 'Open source under AGPL-3.0', (v) => `https://github.com/rajivyshah/Roamies-LocalAI/releases/tag/v${v}`, 'Open the BitJarvis source code on GitHub'],
+    ['Original app', 'Roamies by Ken Kai', 'https://github.com/KenKaiii/Roamies', 'Open the original Roamies app by Ken Kai'],
   ];
-  let ken = null;
+  let owner = null;
   function maker() {
-    if (!ken) {
+    if (!owner) {
       const cv = el('canvas', { 'aria-hidden': 'true' });
       const r = liveRoamie(cv, 100, 74, { look: 'ken', y: 0.55 });
-      const card = el('div', { className: 'maker' }, cv, el('span', {}, 'Ken Kai', el('small', { textContent: 'Creator of Roamies' })));
+      const card = el('div', { className: 'maker' }, cv, el('span', {}, 'Rajiv Shah', el('small', { textContent: 'Creator of BitJarvis' })));
       let waved = 0;
       card.addEventListener('pointerenter', () => { if (r && Date.now() - waved > 3500) { waved = Date.now(); r.act('wave'); } });
       r?.appear('crt');
-      ken = card;
+      owner = card;
     }
-    return ken;
+    return owner;
   }
   function aboutPage() {
     return [
       group('Made by', null, null, maker(),
-        KEN.map(([label, hint, url, aria]) => el('div', { className: 'setting' },
-          el('span', {}, label, el('small', { textContent: hint })),
-          link('Open', () => send({ type: 'open_link', url }), { k: `ken-${label.toLowerCase()}`, aria })))),
+        OWNER.map(([label, hint, url, aria]) => {
+          const href = typeof url === 'function' ? url(state.version) : url;
+          return el('div', { className: 'setting' },
+            el('span', {}, label, el('small', { textContent: hint })),
+            link('Open', () => send({ type: 'open_link', url: href }), { k: `owner-${label.toLowerCase()}`, aria }));
+        })),
       group('Help', null, null,
         el('div', { className: 'links' },
           link('Setup guide', () => act('setup', true), { k: 'setup' }),
@@ -800,7 +803,7 @@
 
   // ---------------------------------------------------------------- browser preview
   function preview() {
-    document.title = 'Roamies panel (preview with sample data)';
+    document.title = 'BitJarvis panel (preview with sample data)';
     const at = Date.now();
     const s = {
       version: '0.9.0', os: /Win/.test(navigator.platform) ? 'win' : 'mac',
@@ -832,7 +835,7 @@
         { at: at - 9.4 * 60e3, kind: 'ask', text: 'what does this error mean' },
       ],
       usage: { requests: 14, tokens: 31240 },
-      facts: [{ id: 'f1', text: 'Prefers short answers in the morning' }, { id: 'f2', text: 'Working on the Roamies 1.0 launch, due end of month' }, { id: 'f3', text: 'Has a cat called Miso' }],
+      facts: [{ id: 'f1', text: 'Prefers short answers in the morning' }, { id: 'f2', text: 'Working on the BitJarvis 1.0 launch, due end of month' }, { id: 'f3', text: 'Has a cat called Miso' }],
       commitments: [{ id: 'c1', text: 'Send the launch email', when: 'Fri 7 Nov, 10:00', overdue: false }, { id: 'c2', text: 'Book the dentist', when: 'Mon 3 Nov, 09:00', overdue: true }],
       name: 'Roamie', look: 'classic', looks: [['classic', 'Roamie'], ['jarvis', 'JARVIS'], ['anime', 'Anime Girl'], ['sarah', 'Sarah'], ['adrian', 'Adrian']],
       size: 'default', sizes: [['default', 'Default'], ['small', 'Small'], ['cursor', 'Cursor']],

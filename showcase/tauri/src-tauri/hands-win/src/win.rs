@@ -208,7 +208,7 @@ pub fn elevated_above_me(pid: u32) -> bool {
     el == Some(true)
 }
 
-/// Never point at Roamies itself (its overlay windows cover every screen).
+/// Never point at BitJarvis itself (its overlay windows cover every screen).
 pub fn is_roamies(pid: u32, exe: &str) -> bool {
     static ME: OnceLock<(u32, Option<u32>)> = OnceLock::new();
     let (me, parent) = *ME.get_or_init(|| {
@@ -332,7 +332,7 @@ pub fn front_hwnd() -> HWND {
     unsafe { GetForegroundWindow() }
 }
 
-/// The app in front (its process), unless that's Roamies.
+/// The app in front (its process), unless that's BitJarvis.
 pub fn front_pid() -> Option<u32> {
     let h = front_hwnd();
     if h.0.is_null() {
@@ -366,7 +366,7 @@ pub fn no_window(target: &str) -> String {
     format!("No matching window is open{}.", target.strip_prefix("app:").map(|n| format!(" for {n}")).unwrap_or_default())
 }
 
-/// A target to a window. "front" = the frontmost app that isn't Roamies.
+/// A target to a window. "front" = the frontmost app that isn't BitJarvis.
 pub fn resolve(target: &str) -> Option<Win> {
     let all = windows();
     if target == "front" {
@@ -445,7 +445,7 @@ pub fn bring_to_front(w: &Win) -> bool {
     front_pid() == Some(w.pid)
 }
 
-/// The topmost window (not Roamies) under a screen point.
+/// The topmost window (not BitJarvis) under a screen point.
 pub fn window_at(x: f64, y: f64) -> Option<Win> {
     windows().into_iter().find(|w| w.r.contains(x, y))
 }

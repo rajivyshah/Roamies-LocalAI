@@ -1,4 +1,4 @@
-// Voice helper for Roamies (macOS). Watches ⌃⌥, captures the mic and transcribes on-device with
+// Voice helper for BitJarvis (macOS). Watches ⌃⌥, captures the mic and transcribes on-device with
 // Apple's SpeechAnalyzer (macOS 26+, works with Siri and Dictation off; SFSpeechRecognizer before that).
 // A session never ends while ⌃⌥ is held: it ends on release (push-to-talk), or for hands-free
 // (quick tap) on a pause or the next press-and-release. Hold ⌃⌥ = push-to-talk (release sends). Quick tap = hands-free
@@ -37,7 +37,7 @@ enum ClickTarget {
         }
         return false
     }
-    /// The roles under a point and its app (empty when it can't be read); nil for Roamies' own windows.
+    /// The roles under a point and its app (empty when it can't be read); nil for BitJarvis' own windows.
     static func at(_ p: CGPoint) -> (roles: [String], app: String)? {
         let system = AXUIElementCreateSystemWide()
         AXUIElementSetMessagingTimeout(system, 0.25)
@@ -198,7 +198,7 @@ final class LegacyRecognizer: Recognizer {
         if rec.supportsOnDeviceRecognition { req.requiresOnDeviceRecognition = true }
         if #available(macOS 13, *) { req.addsPunctuation = true }
         req.taskHint = .dictation
-        req.contextualStrings = ["Roamies", "Roamie", "JARVIS"]
+        req.contextualStrings = ["BitJarvis", "Roamie", "JARVIS"]
         task = rec.recognitionTask(with: req) { result, error in
             DispatchQueue.main.async {
                 if let result {
@@ -665,7 +665,7 @@ final class Voice {
 
 // ---------- one-shot permission modes (used by the setup guide) ----------
 // --perms prints the current state; --request <mic|speech|screen> asks, then prints the state.
-// Run as a child of Roamies, so macOS attributes the prompts and grants to Roamies.
+// Run as a child of BitJarvis, so macOS attributes the prompts and grants to BitJarvis.
 func permStatus() -> [String: Any] {
     func av(_ s: AVAuthorizationStatus) -> String { s == .authorized ? "granted" : s == .notDetermined ? "unknown" : "denied" }
     func sp(_ s: SFSpeechRecognizerAuthorizationStatus) -> String { s == .authorized ? "granted" : s == .notDetermined ? "unknown" : "denied" }
@@ -780,7 +780,7 @@ Thread.detachNewThread {
         default: break
         }
     }
-    // Roamies quit: never leave the Mac muted.
+    // BitJarvis quit: never leave the Mac muted.
     DispatchQueue.main.sync { OutputMute.end() }
     exit(0)
 }

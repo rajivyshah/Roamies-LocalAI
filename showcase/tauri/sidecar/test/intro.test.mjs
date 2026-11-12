@@ -36,8 +36,8 @@ assert.equal(questionIn(`${'a'.repeat(120)}?`), 'Type your answer…', 'too long
 assert.equal(questionIn('VS Code, nice. 😄 What\'s the actual thing you\'re going for right now? Could be X.'), "What's the actual thing you're going for right now?", 'no emoji in front');
 assert.equal(questionIn("100k by summer, love it! Okay, last one: have you used AI helpers before, like ChatGPT, Claude, Gemini, an AI that does things on your computer, or none yet?"), 'Have you used AI helpers before?', 'long question cut to its core');
 // The guide window shows the reaction, the question as the heading, and the nudge after it.
-assert.deepEqual(splitTurn("[wave] Hi Ken, I'm Roamies! I've got four quick questions. What are you working on these days?"),
-  { lead: "Hi Ken, I'm Roamies! I've got four quick questions.", question: 'What are you working on these days?', hint: '' });
+assert.deepEqual(splitTurn("[wave] Hi Ken, I'm BitJarvis! I've got four quick questions. What are you working on these days?"),
+  { lead: "Hi Ken, I'm BitJarvis! I've got four quick questions.", question: 'What are you working on these days?', hint: '' });
 assert.deepEqual(splitTurn('[warm] Night shifts and exam prep, wow. What does a normal week look like? Could be the hospital, Anki, or something else entirely.'),
   { lead: 'Night shifts and exam prep, wow.', question: 'What does a normal week look like?', hint: 'Could be the hospital, Anki, or something else entirely.' });
 assert.deepEqual(splitTurn('Okay, last one: have you used AI helpers before?'), { lead: '', question: 'Okay, last one: have you used AI helpers before?', hint: '' });

@@ -16,7 +16,7 @@ const MODELS = ['drama-3', 's2.1-pro'], RATE = 24000;
 const LOOK_VOICES = [DEFAULT_VOICE, ...new Set([...fs.readFileSync(path.join(HERE, '..', 'sidekick.mjs'), 'utf8').matchAll(/\['\w+', '[^']+', '([0-9a-f]{32})'\]/g)].map((m) => m[1]))];
 const only = process.argv.includes('--only') ? process.argv[process.argv.indexOf('--only') + 1] : null;
 const key = await createSecrets({ hands: HANDS }).get('fish-audio');
-if (!key) { console.error('No Fish Audio key in the Keychain: add one in Roamies first.'); process.exit(1); }
+if (!key) { console.error('No Fish Audio key in the Keychain: add one in BitJarvis first.'); process.exit(1); }
 
 // Trim silence at both ends (keeping a little), so a beat starts the moment it plays.
 function trim(pcm) {

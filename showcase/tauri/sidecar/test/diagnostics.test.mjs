@@ -51,7 +51,7 @@ assert.ok(act[1][1].startsWith('2026-11-10 event'), 'the newest day comes whole'
 
 // The report: a header saying where to send it, each section, all of it scrubbed.
 const report = buildReport({ now: new Date('2026-11-11T09:30:00Z'), version: '1.2.3', sections: [['System', { platform: 'win32' }], ['Voice helper log', '/Users/jane/x sk-ant-api03-AbCdEfGhIjKlMnOpQrSt'], ['Empty', '']] }, who);
-assert.match(report, /^Roamies diagnostics\nMade 2026-11-11T09:30:00\.000Z by Roamies 1\.2\.3\./);
+assert.match(report, /^BitJarvis diagnostics\nMade 2026-11-11T09:30:00\.000Z by BitJarvis 1\.2\.3\./);
 assert.match(report, /github\.com\/rajivyshah\/Roamies-LocalAI\/issues/);
 assert.match(report, /-------- System -+\n\{\n {2}"platform": "win32"\n\}/);
 assert.match(report, /-------- Voice helper log -+\n~\/x <key>\n/);

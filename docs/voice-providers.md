@@ -1,10 +1,10 @@
 # Voice providers (and where the local-AI-endpoint work fits)
 
-This fork lets you pick who speaks Roamies' replies: **Fish Audio** (the default, unchanged),
+This fork lets you pick who speaks BitJarvis' replies: **Fish Audio** (the default, unchanged),
 **Google Gemini**, or **any OpenAI-compatible speech endpoint** — a local Kokoro or Piper, or a server
 of your own. Fish Audio bills your account per character; the other two can cost nothing at all.
 
-The chat side (which AI answers you) is a separate question, covered at the bottom: the framework Roamies
+The chat side (which AI answers you) is a separate question, covered at the bottom: the framework BitJarvis
 is built on already knows how to talk to a local model server, and this fork now asks for one — Ollama is
 found by itself, and any other OpenAI-compatible server can be added in the panel's Model page.
 
@@ -70,7 +70,7 @@ One request per sentence, sent as soon as the sentence is ready, so the reply st
 is still being written. Gemini answers with base64 PCM (16-bit, 24 kHz, mono), which is exactly what the
 overlay plays.
 
-Roamies' voice cues (`[warm] Hello`) are Fish's syntax. With Gemini they become style prompts —
+BitJarvis' voice cues (`[warm] Hello`) are Fish's syntax. With Gemini they become style prompts —
 "in a warm tone" — and a cue Gemini has no word for is dropped rather than read out.
 
 ### A local voice (free, offline)
@@ -121,8 +121,8 @@ endpoint URL — never a key.
 
 ## The chat side: your own local model endpoint
 
-Roamies' brain is a [gg-framework](https://github.com/KenKaiii/gg-framework) agent, and the framework
-already supports local model servers — Roamies just never asks for them. In `@kenkaiiii/gg-core` 5.95.0
+BitJarvis' brain is a [gg-framework](https://github.com/KenKaiii/gg-framework) agent, and the framework
+already supports local model servers — BitJarvis just never asks for them. In `@kenkaiiii/gg-core` 5.95.0
 (the version this repo pins) there is:
 
 - `discoverLocalModels()` / `probeEndpoint()` — finds models on an Ollama, LM Studio, llama.cpp or vLLM
@@ -191,7 +191,7 @@ about the sidecar's pinned npm versions.
 
 ```bash
 git clone https://github.com/<you>/Roamies.git
-cd Roamies
+cd Roamies-LocalAI
 git remote add upstream https://github.com/KenKaiii/Roamies.git
 git fetch upstream && git rebase upstream/main
 ```
@@ -222,6 +222,6 @@ cd .. && ../build.sh dev                            # debug build
   (roughly 0.3–0.8 s). Fish streams word by word.
 - The recorded "beats" (the "One sec." lines) are Fish recordings. Other engines say them live, so they
   cost one request each and are a touch slower.
-- Only Fish understands Roamies' full cue vocabulary. Gemini gets the moods and tones as style prompts;
+- Only Fish understands BitJarvis' full cue vocabulary. Gemini gets the moods and tones as style prompts;
   a plain OpenAI-compatible endpoint gets no cues at all.
 - An endpoint that answers with MP3 is refused, with a note to ask it for WAV or PCM instead.

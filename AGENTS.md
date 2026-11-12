@@ -1,6 +1,7 @@
 # AGENTS.md
 
-Roamies: a Tauri 2 desktop app (Rust shell in `showcase/tauri/src-tauri`), a Node sidecar that runs the
+BitJarvis (a fork of Roamies, by Rajiv Shah): a Tauri 2 desktop app (Rust shell in `showcase/tauri/src-tauri`), a
+Node sidecar that runs the
 agent (`showcase/tauri/sidecar`), shared browser JS in `showcase/roamies`, macOS Swift helpers built by
 `src-tauri/build.rs`, and two Windows helpers built by `build.sh` for Windows targets: voice
 (`src-tauri/voice-win`, Rust + Parakeet; `--transcribe <wav>` and `--test-audio <wav>` test speech without a
@@ -8,6 +9,10 @@ Windows PC, see the top of its `main.rs`) and hands (`src-tauri/hands-win`, the 
 commands and JSON, over Win32, UI Automation and Windows OCR). Only hands-win's `logic.rs` builds off Windows, so
 `cargo test` there runs its checks anywhere; `roamies-hands --smoke` drives Notepad on a real Windows desktop (CI).
 From a Mac, `cargo xwin check --target x86_64-pc-windows-msvc` type-checks the Windows code with the real SDK.
+
+The product name users see is BitJarvis; the helper binaries, the `roamies/` folder, the `ROAMIES_*` environment
+variables and the `~/.gg` data folder keep their names (they are internal, and renaming them buys nothing). What
+this fork changed is listed in `NOTICE.md`; the AGPL requires that notice to stay accurate.
 
 Linux (beta) uses the same voice helper (`voice-win` builds for Linux too: ALSA mic, talk keys over X11, and a
 `toggle` command for `roamies --talk` on Wayland) and no hands helper. Its shell code is `src-tauri/src/linux.rs`:
@@ -34,7 +39,8 @@ Ubuntu 24.04 because ONNX Runtime needs glibc 2.38) into a draft GitHub release.
 stopping the release; `latest.json` lists Linux only when its AppImage is there.
 
 This fork's own releases are separate: push a `fork-v*` tag to run `.github/workflows/release-windows.yml`, which
-builds and signs the Windows installer, publishes the release and writes `latest.json` (and the `updates` branch
+builds and signs the Windows installer, publishes the release, attaches the source of that exact build
+(`BitJarvis_<version>_source.zip`, the AGPL's source offer) and writes `latest.json` (and the `updates` branch
 copy) for this fork's updater. A fork does not run the workflows it inherits, so `ci-fork.yml` is this fork's own
 CI (sidecar tests, inline-node check, build, helper tests) on every branch; `sync-upstream.sh` and
 `docs/fork-maintenance.md` are the playbook for taking Ken's changes in.
@@ -48,7 +54,7 @@ CI (sidecar tests, inline-node check, build, helper tests) on every branch; `syn
 - In-app updates read `latest.json` from the newest published release, signed with the key in the
   `TAURI_SIGNING_PRIVATE_KEY` secret. Keep `plugins.updater.pubkey` in `tauri.conf.json` matching it.
   When GitHub's release links fail, the updater falls back to the copy on the `updates` branch, which
-  `.github/workflows/update-feed.yml` writes whenever a release is published; downloads go through the API.
+  `release-windows.yml` writes whenever a release is published; downloads go through the API.
 
 - CI lives in `.github/workflows/ci.yml` and must stay green.
 - Never commit with `--no-verify`.

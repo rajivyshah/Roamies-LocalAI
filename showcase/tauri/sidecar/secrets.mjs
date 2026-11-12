@@ -118,7 +118,7 @@ export function createSecrets({ platform = process.platform, hands = '', dataDir
       },
       async set(name, value) {
         check(name);
-        const r = await exec('secret-tool', ['store', '--label', `Roamies: ${name}`, ...attrs(name)], value);
+        const r = await exec('secret-tool', ['store', '--label', `BitJarvis: ${name}`, ...attrs(name)], value);
         if (r.code !== 0) throw new Error(problem(r));
       },
       async delete(name) {

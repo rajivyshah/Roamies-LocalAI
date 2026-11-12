@@ -35,7 +35,7 @@ final class Buddy: NSObject {
         panel.isReleasedWhenClosed = false
         panel.level = .statusBar
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary, .ignoresCycle]
-        panel.setAccessibilityLabel("Roamies sidekick")
+        panel.setAccessibilityLabel("BitJarvis sidekick")
         let view = NSView(frame: NSRect(origin: .zero, size: panel.frame.size))
         view.wantsLayer = true
         view.autoresizingMask = [.width, .height]

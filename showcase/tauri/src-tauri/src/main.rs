@@ -1,4 +1,4 @@
-// Menu-bar-only shell for the roamies. One transparent, always-on-top, click-through webview per
+// Menu-bar-only shell for BitJarvis. One transparent, always-on-top, click-through webview per
 // monitor; a Node sidecar (gg-agent) is the brain and owns the tray menu, settings and logins.
 // No Dock icon (LSUIElement + Accessory policy) and no taskbar entries on Windows/Linux.
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
@@ -80,7 +80,7 @@ static TYPING: AtomicBool = AtomicBool::new(false);
 static INK_WAIT: AtomicBool = AtomicBool::new(false);
 /// The type-to-ask pair as tap.rs bits (0: none, as on Wayland): a quick tap of it opens the text field by the cursor.
 static WRITE_CHORD: AtomicU8 = AtomicU8::new(0);
-/// The cursor is over something clickable in an overlay (a card, its buttons): a click there is on Roamies, not the app below.
+/// The cursor is over something clickable in an overlay (a card, its buttons): a click there is on BitJarvis, not the app below.
 pub(crate) static OVERLAY_HOT: AtomicBool = AtomicBool::new(false);
 
 fn is_overlay(label: &str) -> bool {
@@ -233,7 +233,7 @@ fn other_input_down() -> bool {
     false
 }
 
-/// Windows: leaves an overlay out of every capture, so Roamies never shows up in its own screenshots, area snaps
+/// Windows: leaves an overlay out of every capture, so BitJarvis never shows up in its own screenshots, area snaps
 /// or the pictures it reads text from.
 #[cfg(target_os = "windows")]
 fn exclude_from_capture(w: &WebviewWindow) {
@@ -328,7 +328,7 @@ fn set_typing(app: AppHandle, window: WebviewWindow, on: bool) {
     let _ = window.set_focusable(on);
     if on {
         let _ = window.set_focus();
-        // Opened from a hotkey (e.g. after an area snap), Roamies isn't the active app and macOS 14+
+        // Opened from a hotkey (e.g. after an area snap), BitJarvis isn't the active app and macOS 14+
         // ignores plain focus requests, so make the overlay key directly, then ask to activate.
         #[cfg(target_os = "macos")]
         if let Ok(p) = window.ns_window() {
@@ -499,7 +499,7 @@ async fn screen_check() -> Value {
 }
 
 /// Shows the hands helper's panel under System Settings for one Privacy pane ("accessibility" or
-/// "screen"): Roamies' icon to drag into the list, in case macOS left it out. Any other kind just
+/// "screen"): BitJarvis' icon to drag into the list, in case macOS left it out. Any other kind just
 /// closes it. The helper waits for Settings to open and leaves once its stdin (held here) closes.
 #[tauri::command]
 fn perm_guide(app: AppHandle, kind: Option<String>) {
@@ -508,7 +508,7 @@ fn perm_guide(app: AppHandle, kind: Option<String>) {
     {
         let Some(kind) = kind.filter(|k| k == "accessibility" || k == "screen") else { return };
         let Some(bin) = helper_binary("roamies-hands") else { return };
-        // The Roamies.app around this binary; a dev build has none, so the panel shows text only.
+        // The BitJarvis.app around this binary; a dev build has none, so the panel shows text only.
         let bundle = std::env::current_exe()
             .ok()
             .and_then(|e| e.ancestors().find(|p| p.extension().is_some_and(|x| x == "app")).map(|p| p.to_string_lossy().into_owned()))
@@ -725,7 +725,7 @@ fn show_panel(app: &AppHandle, rect: Option<tauri::Rect>, toggle: bool) {
         Some(w) => w,
         None => {
             let b = WebviewWindowBuilder::new(app, PANEL_LABEL, WebviewUrl::App("panel/index.html".into()))
-                .title("Roamies")
+                .title("BitJarvis")
                 .inner_size(PANEL_W, PANEL_H)
                 .resizable(false)
                 .maximizable(false)
@@ -850,7 +850,7 @@ fn set_panel_position(w: &WebviewWindow, x: f64, y: f64, _s: f64) {
 
 // ---------- setup guide window ----------
 
-/// While the setup guide is open Roamies is a normal app (Dock icon, ⌘Tab), so it's easy to get
+/// While the setup guide is open BitJarvis is a normal app (Dock icon, ⌘Tab), so it's easy to get
 /// back to after a trip to System Settings. Otherwise it lives only in the menu bar.
 fn set_dock(app: &AppHandle, visible: bool) {
     #[cfg(target_os = "macos")]
@@ -879,7 +879,7 @@ fn open_onboarding(app: &AppHandle, mode: Option<&str>) {
     }
     let url = if chat { "onboarding/index.html?mode=chat" } else { "onboarding/index.html" };
     let mut b = WebviewWindowBuilder::new(app, ONBOARDING_LABEL, WebviewUrl::App(url.into()))
-        .title(if chat { "Get to know you" } else { "Welcome to Roamies" })
+        .title(if chat { "Get to know you" } else { "Welcome to BitJarvis" })
         .inner_size(780.0, 540.0)
         .resizable(false)
         .maximizable(false)
@@ -1062,7 +1062,7 @@ fn build_overlays(app: &AppHandle) -> tauri::Result<()> {
             *SIDEKICK_OVERLAY.lock().unwrap() = Some(label.clone());
         }
         let w = WebviewWindowBuilder::new(app, label, WebviewUrl::App("desktop.html".into()))
-            .title("Roamies")
+            .title("BitJarvis")
             .transparent(true)
             .decorations(false)
             .shadow(false)
@@ -1278,8 +1278,8 @@ fn fallback_menu(app: &AppHandle, status: &str) {
     set_menu(app, &[
         json!({ "id": "status", "label": status, "enabled": false }),
         json!({ "sep": true }),
-        json!({ "id": "restart", "label": "Restart Roamies" }),
-        json!({ "id": "quit", "label": "Quit Roamies" }),
+        json!({ "id": "restart", "label": "Restart BitJarvis" }),
+        json!({ "id": "quit", "label": "Quit BitJarvis" }),
     ]);
 }
 
@@ -1313,7 +1313,7 @@ fn login_item(app: &AppHandle, set: Option<bool>) {
     #[cfg(target_os = "macos")]
     let (supported, on, approval) = {
         use objc2_service_management::{SMAppService, SMAppServiceStatus};
-        let in_apps = exe_s.starts_with("/Applications/") || exe_s.contains("/Applications/Roamies.app/");
+        let in_apps = exe_s.starts_with("/Applications/") || exe_s.contains("/Applications/BitJarvis.app/");
         if !objc2::available!(macos = 13.0) || !installed || !in_apps {
             (false, false, false)
         } else {
@@ -1340,11 +1340,11 @@ fn login_item(app: &AppHandle, set: Option<bool>) {
             (false, false, false)
         } else {
             match set {
-                Some(true) => { let v = format!("\"{}\"", exe.display()); reg(&["add", KEY, "/v", "Roamies", "/t", "REG_SZ", "/d", &v, "/f"]); }
-                Some(false) => { reg(&["delete", KEY, "/v", "Roamies", "/f"]); }
+                Some(true) => { let v = format!("\"{}\"", exe.display()); reg(&["add", KEY, "/v", "BitJarvis", "/t", "REG_SZ", "/d", &v, "/f"]); }
+                Some(false) => { reg(&["delete", KEY, "/v", "BitJarvis", "/f"]); }
                 None => {}
             }
-            (true, reg(&["query", KEY, "/v", "Roamies"]), false)
+            (true, reg(&["query", KEY, "/v", "BitJarvis"]), false)
         }
     };
     #[cfg(target_os = "linux")]
@@ -1566,12 +1566,12 @@ fn main() {
                 app.set_menu(Menu::default(app.handle())?)?;
             }
 
-            let starting = MenuItem::with_id(app, "status", "Starting Roamies…", false, None::<&str>)?;
-            let quit = MenuItem::with_id(app, "quit", "Quit Roamies", true, None::<&str>)?;
+            let starting = MenuItem::with_id(app, "status", "Starting BitJarvis…", false, None::<&str>)?;
+            let quit = MenuItem::with_id(app, "quit", "Quit BitJarvis", true, None::<&str>)?;
             let menu = Menu::with_items(app, &[&starting, &quit])?;
             // Left click opens the panel; right click shows the short menu.
             let mut tray = TrayIconBuilder::with_id("roamies")
-                .tooltip("Roamies")
+                .tooltip("BitJarvis")
                 .menu(&menu)
                 .show_menu_on_left_click(false)
                 .on_tray_icon_event(|tray, e| {
@@ -1604,7 +1604,7 @@ fn main() {
             Ok(())
         })
         .build(tauri::generate_context!())
-        .expect("failed to run Roamies")
+        .expect("failed to run BitJarvis")
         .run(|_, e| {
             if matches!(e, tauri::RunEvent::ExitRequested { .. } | tauri::RunEvent::Exit) {
                 sidecar::QUITTING.store(true, Ordering::SeqCst);

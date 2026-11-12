@@ -1,9 +1,14 @@
-# Keeping your fork alive
+# Keeping BitJarvis alive
 
-Your fork (`rajivyshah/Roamies-LocalAI`) has two features Ken's build does not: the extra voice
-engines (Gemini, any OpenAI-compatible endpoint) and your own model servers (Ollama, LM Studio,
-anything OpenAI-compatible). This page is the playbook for keeping both of those **and** Ken's new
-features, without either one breaking the other.
+**BitJarvis** is this fork (`rajivyshah/Roamies-LocalAI`), by Rajiv Shah. It has three things Ken's build
+does not: the extra voice engines (Gemini, any OpenAI-compatible endpoint), your own model servers (Ollama,
+LM Studio, anything OpenAI-compatible), and its own release pipeline that signs and publishes the build the
+app updates itself from. This page is the playbook for keeping all of those **and** Ken's new features,
+without either one breaking the other.
+
+The AGPL asks one thing of you here: the notice that says what this fork changed — `NOTICE.md` — has to stay
+accurate, and every build you publish has to carry its source. The release workflow takes care of the second
+one (it attaches `BitJarvis_<version>_source.zip` to each release).
 
 ## The two update paths
 
@@ -69,7 +74,8 @@ wired, those tests fail loudly instead of the app quietly losing a feature.
 ## Publishing your own releases
 
 Your fork keeps the upstream release workflow, plus two of its own. `release-windows.yml` builds the
-Windows installer, signs it with your key, publishes it to your fork and writes the `latest.json` the
+Windows installer, signs it with your key, publishes it to your fork, attaches the source of that exact
+build (`BitJarvis_<version>_source.zip`, the AGPL's source offer) and writes the `latest.json` the
 updater reads. `ci-fork.yml` runs the tests and a build on every branch, so a change that came in
 from upstream is checked before it is released.
 
@@ -84,12 +90,15 @@ To publish one:
 # 1. bump the version, so the updater sees a newer one than the app has
 #    (showcase/tauri/src-tauri/tauri.conf.json)
 # 2. tag it and push the tag
-git tag fork-v0.1.35 && git push origin fork-v0.1.35
+git tag fork-v0.1.36 && git push origin fork-v0.1.36
 ```
 
 The tag is `fork-v...` on purpose: upstream's `release.yml` (kept untouched, so a rebase stays
 painless) also builds macOS and Linux, and a fork has no Apple certificate. The two workflows
 therefore never run on the same tag.
+
+Every published release is then a complete AGPL offer: the installer, its signature, the `latest.json`
+the updater reads, and the source of the very commit it was built from.
 
 Two things have to be in place first:
 
@@ -108,7 +117,7 @@ check is written to the log, never to the screen.
 
 ## The licence
 
-Roamies is AGPL-3.0, and that stays true of your fork. Using it for yourself needs nothing. If you
+BitJarvis is AGPL-3.0, and that stays true of your fork. Using it for yourself needs nothing. If you
 hand a build to anyone else, you must publish that build's source under the same licence — your fork
 *is* that source, as long as the "Source code" link in the app points at it (it does).
 
@@ -118,6 +127,6 @@ hand a build to anyone else, you must publish that build's source under the same
 | --- | --- |
 | Your settings, keys and memory | `~/.gg/` — `sidekick.json` (settings), `auth.json` (sign-ins), shared with GG Coder |
 | Your endpoint keys | the OS secret store (Keychain / DPAPI / keyring), never in a file |
-| The installed app | `C:\Users\<you>\AppData\Local\Roamies` (Windows), `/Applications/Roamies.app` (macOS) |
+| The installed app | `C:\Users\<you>\AppData\Local\BitJarvis` (Windows), `/Applications/BitJarvis.app` (macOS) |
 | The build in this clone | `showcase/tauri/src-tauri/target/release/bundle/nsis/` (Windows), `.../dmg/` (macOS) |
 | The signing key | outside the repo, e.g. `~/.roamies-fork/tauri.key`, backed up somewhere safe |

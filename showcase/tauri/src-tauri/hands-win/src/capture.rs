@@ -64,7 +64,7 @@ fn with_bitmap(w: i32, h: i32, draw: impl FnOnce(HDC) -> bool) -> Option<Shot> {
     }
 }
 
-/// What's on screen in a physical-pixel rect. Roamies' overlays are left out (they're excluded from capture).
+/// What's on screen in a physical-pixel rect. BitJarvis' overlays are left out (they're excluded from capture).
 pub fn grab_screen(r: RECT) -> Option<Shot> {
     let (w, h) = (r.right - r.left, r.bottom - r.top);
     with_bitmap(w, h, |mem| unsafe {
