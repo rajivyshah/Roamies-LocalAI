@@ -627,7 +627,7 @@
     ['Skool', 'Learn with Ken, or support him', 'https://www.skool.com/kenkai', "Open Ken Kai's Skool community"],
     ['YouTube', '@kenkaidoesai', 'https://www.youtube.com/@kenkaidoesai', "Open Ken Kai's YouTube channel"],
     ['TikTok', '@ggkenkai', 'https://www.tiktok.com/@ggkenkai', "Open Ken Kai's TikTok"],
-    ['Source code', 'Open source under AGPL-3.0', 'https://github.com/KenKaiii/Roamies', 'Open the Roamies source code on GitHub'],
+    ['Source code', 'Open source under AGPL-3.0', 'https://github.com/rajivyshah/Roamies-LocalAI', 'Open the Roamies source code on GitHub'],
   ];
   let ken = null;
   function maker() {

@@ -37,10 +37,10 @@
   },
   "plugins": {
     "updater": {
-      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEQ0MEI0NTJGMEY1NkNGNUYKUldSZnoxWVBMMFVMMUlXK2ROU3YyaDJVZy9scW56d081dEZwelE0SFBQeFVSVXRVYnZyY3BSd0cK",
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDNCNERCMDdBQTVGMDc1NTAKUldSUWRmQ2xlckJOTzRjM1Q2NDYyK1JuTEFsN25oZzFQUEhLVnRhMEVzUTFkaGt0eERlVzFkVGEK",
       "endpoints": [
-        "https://github.com/KenKaiii/Roamies/releases/latest/download/latest.json",
-        "https://raw.githubusercontent.com/KenKaiii/Roamies/updates/latest.json"
+        "https://github.com/rajivyshah/Roamies-LocalAI/releases/latest/download/latest.json",
+        "https://raw.githubusercontent.com/rajivyshah/Roamies-LocalAI/updates/latest.json"
       ],
       "windows": {
         "installMode": "passive"

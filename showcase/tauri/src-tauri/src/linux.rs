@@ -454,7 +454,7 @@ pub(crate) fn launch_command() -> String {
 /// Where a copy installed from a .deb or .rpm gets its update: the package manager owns those files, so the app
 /// can't swap itself as an AppImage can.
 pub(crate) fn open_releases_page() {
-    let _ = std::process::Command::new("xdg-open").arg("https://github.com/KenKaiii/Roamies/releases/latest").stdin(std::process::Stdio::null()).spawn();
+    let _ = std::process::Command::new("xdg-open").arg("https://github.com/rajivyshah/Roamies-LocalAI/releases/latest").stdin(std::process::Stdio::null()).spawn();
 }
 
 #[cfg(test)]

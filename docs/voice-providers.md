@@ -198,6 +198,10 @@ git fetch upstream && git rebase upstream/main
 
 Upstream bumps `@kenkaiiii/gg-core` often, so after a rebase: `cd showcase/tauri/sidecar && npm ci && npm test`.
 
+`./sync-upstream.sh` does the whole loop for you: fetch, rebase, test, build the installer. See
+[Keeping your fork alive](fork-maintenance.md) for how the app's own updater is pointed at your fork
+instead of Ken's, and how to publish your own releases.
+
 If you ever distribute a build of this fork, AGPL-3.0 asks you to publish the source of that build under
 the same licence. Using it for yourself needs nothing.
 
