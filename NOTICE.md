@@ -53,6 +53,11 @@ BitJarvis is a modified version of Roamies. The changes are:
 - **The app updates itself from this fork.** The updater, its signing key and its release pipeline
   point at this repository (`rajivyshah/Roamies-LocalAI`), never at the upstream project's releases.
   See `docs/fork-maintenance.md`.
+- **Claude Code is now opt-in, not bundled.** The optional "Sign in with Claude" mode no longer
+  ships Anthropic's proprietary `claude-agent-sdk` in the sidecar (moved to `devDependencies` only,
+  `bundle.sh` marks it `--external`, and it is loaded by a lazy dynamic import when the user
+  actually signs in with Claude). Without the SDK the user is guided to an API key instead; a full
+  explanation is in `docs/claude-code.md`.
 - **A panel that scrolls.** The settings panel is a fixed 560×560 window; pages taller than that now
   scroll instead of clipping.
 
@@ -85,11 +90,17 @@ under its own licence, and the full list, with links and licences, is in
 - `@kenkaiiii/gg-agent`, `gg-ai`, `gg-core` (Ken Kai's agent framework) — AGPL-3.0-only.
 - Doto and Martian Mono fonts — SIL Open Font License 1.1. Natural Earth map data — public domain.
 - NVIDIA Parakeet speech model — CC BY 4.0, downloaded at setup, not redistributed here.
-- `@anthropic-ai/claude-agent-sdk` — **proprietary**, © Anthropic PBC. It is bundled in the sidecar and
-  is used for the optional "Claude Code" mode. If you distribute BitJarvis, Anthropic's terms apply
-  to that component: each end user authenticates with their own Anthropic key or subscription, and
-  Claude usage must not be resold or intermediated on their behalf. See
-  <https://code.claude.com/docs/en/legal-and-compliance>.
+- `@anthropic-ai/claude-agent-sdk` 0.3.318 — **proprietary**, © Anthropic PBC. It is loaded by a lazy
+  dynamic import in `showcase/tauri/sidecar/claudecode.mjs` only when a user actually signs in with
+  Claude and runs that mode; it is **not bundled in the shipped sidecar** (moved from `dependencies`
+  to `devDependencies` in `package.json`, and `bundle.sh` marks it `--external`). If you install the
+  SDK yourself, "Sign in with Claude" works as before; otherwise the app falls back to an API key.
+  Anthropic's terms apply whenever you or a user use this component: each end user authenticates with
+  their own Anthropic key or subscription, and Claude usage must not be resold or intermediated on
+  their behalf. See <https://code.claude.com/docs/en/legal-and-compliance>.
+- `@anthropic-ai/sdk` 1.6.0 — proprietary, © Anthropic PBC. Still present in the shipped bundle as a
+  transitive dependency of `@kenkaiiii/gg-*` (AGPL-3.0-only), which statically imports it for the
+  API-key provider path; see docs/claude-code.md.
 
 ## 6. Trademarks
 

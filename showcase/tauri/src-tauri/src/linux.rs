@@ -394,7 +394,7 @@ fn exec_quoted(path: &str) -> Option<String> {
 /// The XDG autostart entry that starts BitJarvis when the user logs in.
 fn autostart_entry(program: &str) -> Option<String> {
     let exec = exec_quoted(program)?;
-    Some(format!("[Desktop Entry]\nType=Application\nName=BitJarvis\nComment=AI desktop companions\nExec={exec}\nIcon=roamies\nTerminal=false\nX-GNOME-Autostart-enabled=true\n"))
+    Some(format!("[Desktop Entry]\nType=Application\nName=BitJarvis\nComment=AI desktop companions\nExec={exec}\nIcon=bitjarvis\nTerminal=false\nX-GNOME-Autostart-enabled=true\n"))
 }
 
 /// Whether an autostart entry is switched on: desktops' own "startup apps" settings switch one off by adding

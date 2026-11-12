@@ -1,7 +1,11 @@
 // "Sign in with Claude" runs replies through Claude Code: it drives the model loop with our system prompt, and our
 // tools are served to it as an in-process MCP server. Ported from GG Coder's core/claude-code (loop, events,
 // tool-bridge), cut to what BitJarvis uses. ClaudeCodeAgent has the surface sidekick.mjs uses of gg-agent's Agent.
-import { query as sdkQuery, startup as sdkStartup } from '@anthropic-ai/claude-agent-sdk';
+//
+// Anthropic's claude-agent-sdk is a lazy dynamic import here, never a static one: it is not shipped in the bundle
+// (bundle.sh marks it --external) because Anthropic's terms forbid reselling or intermediating Claude usage, so
+// a buyer who hasn't installed it themselves gets a clear message instead. The Claude Code CLI binary is still
+// downloaded at runtime by gg-core; only the Node wrapper that drives it is opt-in.
 import { AgentStream, argumentHints, capToolResults, unknownToolMessage } from '@kenkaiiii/gg-agent';
 import { environmentSecrets, redactValue, resolveToolSchema } from '@kenkaiiii/gg-ai';
 import { recordClaudeCodeRateLimit } from '@kenkaiiii/gg-core';
@@ -10,6 +14,27 @@ import crypto from 'node:crypto';
 
 export const MCP_SERVER = 'gg';
 const TOOL_PREFIX = `mcp__${MCP_SERVER}__`;
+
+// Lazy-loaded only when Claude Code actually runs. See the comment above the imports: the SDK is not in the bundle.
+let sdkQuery, sdkStartup;
+async function loadSdk() {
+  if (sdkQuery) return;
+  try {
+    const mod = await import('@anthropic-ai/claude-agent-sdk');
+    sdkQuery = mod.query; sdkStartup = mod.startup;
+  } catch (e) {
+    throw new Error('Claude Code isn\'t available. The Claude Code SDK isn\'t installed. Sign in with an API key instead on the Model page, or install the SDK yourself.');
+  }
+}
+/** True when the SDK can be loaded right now (the "Sign in with Claude" path is usable). */
+export async function sdkAvailable() {
+  if (sdkQuery) return true;
+  try {
+    const mod = await import('@anthropic-ai/claude-agent-sdk');
+    sdkQuery = mod.query; sdkStartup = mod.startup;
+    return true;
+  } catch { return false; }
+}
 const DEFAULT_TOOL_TIMEOUT_MS = 300_000;
 // Our own per-tool timeout must fire first so its specific message reaches the model.
 const SERVER_TIMEOUT_MARGIN_MS = 60_000;
@@ -370,7 +395,11 @@ export function warmSpare(o, resume) {
   if (spare?.key === key) { clearTimeout(spare.timer); spare.timer = setTimeout(closeSpare, SPARE_IDLE_MS); spare.timer.unref?.(); return; }
   closeSpare();
   const link = {}, made = sdkOptions(o, resume, link);
-  const warm = Promise.resolve().then(() => (o.startup ?? sdkStartup)({ options: made.options })).catch(() => null);
+  const warm = Promise.resolve().then(async () => {
+    if (o.startup) return o.startup({ options: made.options });
+    await loadSdk();
+    return sdkStartup({ options: made.options });
+  }).catch(() => null);
   spare = { key, link, ...made, warm, timer: setTimeout(closeSpare, SPARE_IDLE_MS) };
   spare.timer.unref?.();
 }
@@ -405,7 +434,9 @@ async function* claudeCodeLoop(messages, o) {
     input.push(toSdkUserMessage(first));
     const w = s ? await s.warm : null;
     warmUsed = !!w;
-    q = w ? w.query(input) : (o.query ?? sdkQuery)({ prompt: input, options: run.options });
+    if (w) q = w.query(input);
+    else if (o.query) q = o.query({ prompt: input, options: run.options });
+    else { await loadSdk(); q = sdkQuery({ prompt: input, options: run.options }); }
     if (aborted) { input.end(); q.interrupt().catch(() => {}); }
     let seen = false;
     try { for await (const message of q) { seen = true; channel.push({ kind: 'sdk', message }); } channel.push({ kind: 'end' }); }

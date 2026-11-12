@@ -5,7 +5,7 @@
 // in:  {type:'menu', id} {type:'answer', id, text} {type:'ui_ready'}
 // out: {type:'menu', items} {type:'ui', msg} {type:'overlays', ids}
 import { Agent } from '@kenkaiiii/gg-agent';
-import { ClaudeCodeAgent, closeSpare } from './claudecode.mjs';
+import { ClaudeCodeAgent, closeSpare, sdkAvailable } from './claudecode.mjs';
 import { SAFE, checkDrawAction, checkLink, redactArgs } from './safety.mjs';
 import { agentEvents, stallWatch } from './agentstream.mjs';
 import {
@@ -586,6 +586,7 @@ async function claudeCodeRoute() {
   if (config.provider !== 'anthropic' || !(await auth.hasClaudeCodeLogin().catch(() => false))) return null;
   const executable = resolveClaudeCodeBinary();
   if (!executable) throw new Error(`Claude Code isn't installed anymore. Sign in with Claude again on the Model page in ${PANEL}.`);
+  if (!(await sdkAvailable())) throw new Error(`Claude Code isn't available. The Claude Code SDK isn't installed. Sign in with an API key instead on the Model page, or install the SDK yourself.`);
   return { executable, env: claudeCodeEnv() };
 }
 let agentRoute = null;
@@ -1105,7 +1106,10 @@ async function oauthLogin(provider, id = `l${++loginSeq}`) {
   } catch (err) {
     if (!live()) return;
     console.error('login failed', err);
-    const msg = String(err?.message ?? err).slice(0, 120);
+    let msg = String(err?.message ?? err).slice(0, 120);
+    if (provider === 'anthropic' && msg.includes("Claude Code isn't available")) {
+      msg = `Claude Code isn't available. Sign in with an API key instead (Model page), or install the Claude Code SDK yourself.`;
+    }
     if (onboarding) tell({ phase: 'error', error: msg });
     else say(`${PROVIDER_LABELS[provider]} sign-in didn't work: ${msg}`, 'concerned');
   } finally {

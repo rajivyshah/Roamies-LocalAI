@@ -13,6 +13,7 @@ fi
 rm -rf dist && mkdir -p dist/node_modules/@bokuweb
 "$ES" sidekick.mjs --bundle --platform=node --format=esm --target=node22 --outfile=dist/sidekick.mjs \
   --external:@huggingface/transformers --external:ogg-opus-decoder --external:@bokuweb/zstd-wasm \
+  --external:@anthropic-ai/claude-agent-sdk \
   --banner:js="import { createRequire as __cr } from 'node:module'; const require = __cr(import.meta.url);" \
   --log-level=warning
 cp -R node_modules/@bokuweb/zstd-wasm dist/node_modules/@bokuweb/

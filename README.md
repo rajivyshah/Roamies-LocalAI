@@ -42,8 +42,9 @@ Everything else is Roamies as Ken Kai wrote it. [NOTICE.md](NOTICE.md) says exac
 - **It remembers.** What you said you'd do, reminders down to the second, and what matters to you.
 - **It draws on your screen.** Rings the exact button to click and sketches answers beside what you're reading.
 - **It does the clicking.** Opens apps, sites and files, and on macOS and Windows clicks or types in other apps.
-- **Your subscriptions.** Sign in with Claude or ChatGPT, use an API key (Gemini, Grok, Kimi Code and more), or
-  run it on your own server.
+- **Your subscriptions.** Sign in with ChatGPT, use an API key (Anthropic, Gemini, Grok, Kimi Code and more), or
+  run it on your own server. "Sign in with Claude" (Claude Code mode) is opt-in and needs Anthropic's
+  Claude Code SDK installed on your own machine — it is not bundled. See [docs/claude-code.md](docs/claude-code.md).
 
 ## Get started
 
