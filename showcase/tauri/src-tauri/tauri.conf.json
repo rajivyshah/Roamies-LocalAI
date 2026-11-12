@@ -1,8 +1,9 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "BitJarvis",
-  "version": "0.1.35",
+  "version": "0.1.36",
   "identifier": "com.rajivyshah.bitjarvis",
+  "mainBinaryName": "bitjarvis",
   "build": {
     "frontendDist": "../dist"
   },
