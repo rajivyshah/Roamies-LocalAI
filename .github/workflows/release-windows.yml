@@ -1,0 +1,127 @@
+# This fork's own release: a signed Windows installer, published to this repository so the app can
+# update itself from it.
+#
+#   git tag fork-v0.1.35 && git push origin fork-v0.1.35
+#
+# Bump "version" in showcase/tauri/src-tauri/tauri.conf.json first: the updater compares the version in
+# latest.json with the app's own, and equal versions mean no update.
+#
+# The tag is "fork-v..." on purpose. The upstream release.yml (kept as it is, so a rebase stays painless)
+# builds macOS and Linux too, and a fork has no Apple certificate; this workflow keeps the one platform it
+# can actually sign, and the two never run on the same tag.
+name: Release (Windows)
+
+on:
+  push:
+    tags: ['fork-v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: windows-latest
+    timeout-minutes: 60
+    defaults:
+      run:
+        shell: bash
+        working-directory: showcase/tauri
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: showcase/tauri/sidecar/package-lock.json
+
+      - name: Install sidecar dependencies
+        working-directory: showcase/tauri/sidecar
+        run: npm ci
+
+      - name: Test sidecar
+        working-directory: showcase/tauri/sidecar
+        run: npm test
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-pc-windows-msvc
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            showcase/tauri/src-tauri -> target
+            showcase/tauri/src-tauri/voice-win -> target
+            showcase/tauri/src-tauri/hands-win -> target
+          key: x86_64-pc-windows-msvc
+
+      - name: Install the Tauri CLI
+        run: cargo install tauri-cli --version "^2" --locked
+
+      # The Windows installer needs NSIS, which the bundler downloads from GitHub release links; those can
+      # time out (504) for hours while the API still works. Fetch the same files through the API into the
+      # bundler's tools folder (it skips its own download when they are there, hash-checked).
+      - name: Prefetch NSIS for the Windows installer
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $dir = Join-Path $env:LOCALAPPDATA 'tauri'; $tmp = Join-Path $env:RUNNER_TEMP 'nsis'
+          New-Item -ItemType Directory -Force $dir, $tmp | Out-Null
+          try {
+            gh release download nsis-3.13 -R tauri-apps/binary-releases -p nsis-3.13.zip -D $tmp --clobber
+            if ($LASTEXITCODE) { throw 'NSIS download failed' }
+            gh release download nsis_tauri_utils-v0.5.3 -R tauri-apps/nsis-tauri-utils -p nsis_tauri_utils.dll -D $tmp --clobber
+            if ($LASTEXITCODE) { throw 'nsis_tauri_utils download failed' }
+            if ((Get-FileHash "$tmp/nsis-3.13.zip" -Algorithm SHA1).Hash -ne 'DB14F8AF2EA346B786C6AE19343F61AAF5E09B8E') { throw 'NSIS hash mismatch' }
+            if ((Get-FileHash "$tmp/nsis_tauri_utils.dll" -Algorithm SHA1).Hash -ne '75197FEE3C6A814FE035788D1C34EAD39349B860') { throw 'nsis_tauri_utils hash mismatch' }
+            Remove-Item -Recurse -Force (Join-Path $dir 'NSIS'), (Join-Path $dir 'nsis-3.13') -ErrorAction SilentlyContinue
+            Expand-Archive -LiteralPath "$tmp/nsis-3.13.zip" -DestinationPath $dir
+            Rename-Item (Join-Path $dir 'nsis-3.13') 'NSIS'
+            $add = Join-Path $dir 'NSIS/Plugins/x86-unicode/additional'
+            New-Item -ItemType Directory -Force $add | Out-Null
+            Copy-Item "$tmp/nsis_tauri_utils.dll" $add
+          } catch { Write-Host "Couldn't prefetch NSIS ($_); the bundler will download it itself." }
+
+      - name: Build the installer
+        env:
+          TAURI_BUNDLES: nsis
+          # This fork's own signing key (the public half is in tauri.conf.json). The secret holds the
+          # private key file's contents; the password secret is only needed if the key has one.
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: ./build.sh release --target x86_64-pc-windows-msvc
+
+      - name: Publish the release and the update feed
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          VER=$(node -p "require('./src-tauri/tauri.conf.json').version")
+          TAG="v${VER}"
+          # Published, not a draft: the updater reads the newest published release.
+          gh release view "$TAG" >/dev/null 2>&1 || gh release create "$TAG" --title "Roamies $TAG" --generate-notes
+          B=src-tauri/target/x86_64-pc-windows-msvc/release/bundle
+          files=($B/nsis/*-setup.exe $B/nsis/*-setup.exe.sig)
+          [ ${#files[@]} -gt 0 ] || { echo "No installer was built"; exit 1; }
+          gh release upload "$TAG" "${files[@]}" --clobber
+          # latest.json: the feed the in-app updater reads. Download links go through the API (the updater
+          # asks for the file itself); GitHub's public release links have timed out while the API worked.
+          mkdir -p sigs && gh release download "$TAG" -p '*.sig' -D sigs
+          gh release view "$TAG" --json assets > assets.json
+          VER="$VER" node -e '
+            const fs = require("fs"), { VER } = process.env;
+            const f = `Roamies_${VER}_x64-setup.exe`;
+            const sig = fs.readFileSync("sigs/" + f + ".sig", "utf8").trim();
+            const api = Object.fromEntries(JSON.parse(fs.readFileSync("assets.json", "utf8")).assets.map((a) => [a.name, a.apiUrl]));
+            if (!api[f]) throw new Error(`${f} is not on the release`);
+            const out = { version: VER, notes: `Roamies ${VER}`, pub_date: new Date().toISOString(), platforms: {} };
+            out.platforms["windows-x86_64"] = { signature: sig, url: api[f] };
+            fs.writeFileSync("latest.json", JSON.stringify(out, null, 2));
+          '
+          cat latest.json
+          gh release upload "$TAG" latest.json --clobber

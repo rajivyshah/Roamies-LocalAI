@@ -68,25 +68,37 @@ wired, those tests fail loudly instead of the app quietly losing a feature.
 
 ## Publishing your own releases
 
-Your fork keeps the upstream release workflow, so a tag builds a signed installer and publishes it to
-your fork, where the app's updater will find it:
+Your fork keeps the upstream release workflow, plus one of its own that builds only what a fork can
+sign. `release-windows.yml` builds the Windows installer, signs it with your key, publishes it to
+your fork and writes the `latest.json` the updater reads.
+
+To publish one:
 
 ```bash
-git tag v0.1.35 && git push origin v0.1.35
+# 1. bump the version, so the updater sees a newer one than the app has
+#    (showcase/tauri/src-tauri/tauri.conf.json)
+# 2. tag it and push the tag
+git tag fork-v0.1.35 && git push origin fork-v0.1.35
 ```
+
+The tag is `fork-v...` on purpose: upstream's `release.yml` (kept untouched, so a rebase stays
+painless) also builds macOS and Linux, and a fork has no Apple certificate. The two workflows
+therefore never run on the same tag.
 
 Two things have to be in place first:
 
-- **The signing key.** The updater only installs a build whose signature matches the public key in
-  `showcase/tauri/src-tauri/tauri.conf.json` (`plugins.updater.pubkey`). Your fork uses its own key
-  pair, and the private half belongs in your fork's Actions secret `TAURI_SIGNING_PRIVATE_KEY`
-  (with `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` if it has a password) — never in the repo.
-- **The feed.** The updater's endpoints point at your fork's releases, with your fork's `updates`
-  branch as the second address. The `Update feed` workflow writes that branch when a release is
-  published.
+- **The signing key in GitHub.** The updater only installs a build whose signature matches the public
+  key in `showcase/tauri/src-tauri/tauri.conf.json` (`plugins.updater.pubkey`) — which is already
+  your fork's key. The private half belongs in your fork's Actions secret `TAURI_SIGNING_PRIVATE_KEY`
+  (the whole contents of `~/.roamies-fork/tauri.key`), with `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` only
+  if the key has a password. Add it under **Settings → Secrets and variables → Actions → New
+  repository secret**. Never in the repo.
+- **The key on this machine.** `~/.roamies-fork/tauri.key` is what `sync-upstream.sh` signs local
+  builds with. Back it up somewhere safe: without it you cannot sign an update, and the app cannot
+  install one.
 
 If you would rather not publish anything, the updater simply finds nothing and stays quiet: a failed
-check is written to the log, not to the screen.
+check is written to the log, never to the screen.
 
 ## The licence
 
