@@ -117,10 +117,20 @@ jobs:
           [ ${#files[@]} -gt 0 ] || { echo "No installer was built"; exit 1; }
           gh release upload "$TAG" "${files[@]}" --clobber
           # The AGPL asks that the source of a distributed build travels with it. The source of this
-          # exact build is this commit, so it is archived and attached to the release next to the
-          # installer (AGPL-3.0 section 6).
-          git archive --format=zip --prefix="${NAME}-${VER}/" -o "${NAME}_${VER}_source.zip" HEAD
-          gh release upload "$TAG" "${NAME}_${VER}_source.zip" --clobber
+          # exact build is this commit, so the whole repository is archived and attached to the release
+          # next to the installer (AGPL-3.0 section 6).
+          # `git archive` from a subdirectory archives only that subtree, which would leave out the
+          # licence, the notices and the web front end: run it from the repository root.
+          SRC_ZIP="$GITHUB_WORKSPACE/${NAME}_${VER}_source.zip"
+          git -C "$GITHUB_WORKSPACE" archive --format=zip --prefix="${NAME}-${VER}/" -o "$SRC_ZIP" HEAD
+          # The licence and the notices have to travel with the source, or the offer is not made.
+          # `git archive HEAD` holds every tracked file at HEAD, so the tree says what the archive holds.
+          FILES=$(git -C "$GITHUB_WORKSPACE" ls-tree -r --name-only HEAD)
+          for need in LICENSE NOTICE.md THIRD_PARTY_NOTICES.md showcase/roamies/host.js; do
+            echo "$FILES" | grep -qx "$need" || { echo "the source archive is missing $need"; exit 1; }
+          done
+          echo "the source archive has the licence, the notices and the web front end"
+          gh release upload "$TAG" "$SRC_ZIP" --clobber
           # latest.json: the feed the in-app updater reads. Download links go through the API (the updater
           # asks for the file itself); GitHub's public release links have timed out while the API worked.
           mkdir -p sigs && gh release download "$TAG" -p '*.sig' -D sigs
