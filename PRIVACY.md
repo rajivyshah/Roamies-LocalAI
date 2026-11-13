@@ -24,6 +24,10 @@ key) receives:
   and the facts and commitments BitJarvis has saved in memory
 - screenshots or window text, when BitJarvis looks at your screen to answer
 
+**Claude Code mode** is off by default and needs Anthropic's Claude Code SDK installed on your own machine —
+BitJarvis does not ship it (see [docs/claude-code.md](docs/claude-code.md)). Signing in with an Anthropic
+API key instead sends the same things above straight to Anthropic's API, under your key.
+
 **Fish Audio** receives the text of each reply to speak it, only if spoken replies are on. It uses your own key.
 
 **The speech engine you pick in this fork's Voice page** also receives the text of each reply, only when spoken
