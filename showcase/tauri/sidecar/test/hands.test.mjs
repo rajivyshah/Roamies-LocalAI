@@ -78,6 +78,11 @@ await assert.rejects(tool('open').execute({ target: 'NoSuchAppRoamiesTest' }, ct
 const opened = await tool('open').execute({ target: 'example.invalid-tld-roamies.test', app: 'NoSuchAppRoamiesTest' }, ctx).catch((e) => String(e.message));
 assert.match(opened, /no app called "NoSuchAppRoamiesTest"/, 'treated as a link opened in the named app');
 
+// The stale watcher polls every 1.5 s and each poll spawns the helper, which is slow on a CI runner: wait for
+// the event instead of for a fixed time, or the test fails on a slow machine.
+const waitFor = async (fn, ms = 20_000) => { const t0 = Date.now(); while (Date.now() - t0 < ms) { if (fn()) return true; await new Promise((r) => setTimeout(r, 50)); } return false; };
+const settle = (ms) => new Promise((r) => setTimeout(r, ms));
+
 // draw: a walkthrough waits for each click, and each next step is looked up only after it (the screen has changed).
 {
   fs.writeFileSync(log, '');
@@ -133,15 +138,15 @@ assert.match(opened, /no app called "NoSuchAppRoamiesTest"/, 'treated as a link 
   assert.match(await draw.execute({ beats: [{ say: 'Another.', marks: [{ kind: 'note', text: 'two' }] }] }, { toolCallId: 'd8' }), /On screen now: p\d+ note “hi”, p\d+ note “two”\./, 'same request: cards add up');
   // Another window comes to the front: the whole drawing goes (cards too), and the model is told nothing is there.
   fs.writeFileSync(path.join(dir, 'front.json'), JSON.stringify({ id: 9, app: 'Safari', title: 'x', bounds: [0, 0, 900, 700] }));
-  await new Promise((r) => setTimeout(r, 1800));
-  assert.equal(other.at(-1).type, 'ink_stale');
+  assert.ok(await waitFor(() => other.at(-1)?.type === 'ink_stale'), 'another window in front makes the drawing stale');
   await assert.rejects(draw.execute({ edit: [{ do: 'erase', part: 'p1' }] }, { toolCallId: 'd9' }), /nothing is drawn/);
   fs.rmSync(path.join(dir, 'front.json'));
   // A drawing that goes by itself (the tour, the setup showcase) is about no window: switching windows keeps it.
   other.length = 0;
   await made.ink.show([{ say: 'Graphs too.', marks: [{ kind: 'note', text: 'a showcase card' }] }], 'showcase-1', { fade: 5 });
   fs.writeFileSync(path.join(dir, 'front.json'), JSON.stringify({ id: 11, app: 'Notes', title: 'y', bounds: [0, 0, 900, 700] }));
-  await new Promise((r) => setTimeout(r, 1800));
+  // Long enough for the watcher to have polled twice and found nothing wrong: the showcase is about no window.
+  await settle(6000);
   assert.ok(!other.some((e) => e.type === 'ink_stale'), 'the showcase stays when another window comes to the front');
   assert.match(made.ink.describe(), /note “a showcase card”/);
   fs.rmSync(path.join(dir, 'front.json'));
@@ -251,9 +256,8 @@ assert.match(opened, /no app called "NoSuchAppRoamiesTest"/, 'treated as a link 
   // The page itself changing counts, however it happened: a click on something script-driven (no link or button) that
   // then loads another page, keys or a swipe. Read as the browser's address, or the title in other apps.
   const front = (w) => fs.writeFileSync(path.join(dir, 'front.json'), JSON.stringify({ id: 7, app: 'Brave Browser', bounds: [0, 0, 800, 600], ...w }));
-  const settle = (ms) => new Promise((r) => setTimeout(r, ms));
   // Gone within a few seconds (the helper is a separate process, slow on CI runners).
-  const gone = async () => { for (let i = 0; i < 50 && made.ink.describe(); i++) await settle(100); return made.ink.describe(); };
+  const gone = async () => { for (let i = 0; i < 150 && made.ink.describe(); i++) await settle(100); return made.ink.describe(); };
   front({ title: 'Repo', url: 'https://github.com/a/b' });
   await graph();
   made.ink.userClick({ x: 300, y: 200, role: 'AXGroup', app: 'Brave Browser', acts: false });

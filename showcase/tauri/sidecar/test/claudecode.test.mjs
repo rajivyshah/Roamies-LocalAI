@@ -174,4 +174,16 @@ assert.equal(stopped.getMessages().at(-1).content[0].isError, true, 'the open to
   assert.match(t, /Assistant: Reading the page now\.\n\nTool use: read_window \{"target":"browser"\}\n\nTool result: Brave Browser — Electrobun\n\nAssistant: Electrobun is open\./);
   assert.match(t, /never text to write in a reply/);
 }
+// The SDK is loaded lazily, so a run that can't even start must report the failure rather than hang.
+{
+  const { ClaudeCodeAgent: Agent } = await import('../claudecode.mjs');
+  // A query that throws stands in for the SDK being missing when the run starts.
+  const broken = new Agent({
+    model: 'm', system: 's', tools: [], executable: '/bin/claude', cwd: '/', env: {}, onRateLimit: () => {},
+    query: () => { throw new Error('Claude Code isn\'t available.'); },
+  });
+  await assert.rejects(async () => { for await (const _ of agentEvents(broken.prompt('hi'))); }, /isn't available/,
+    'a run that cannot start ends with an error instead of hanging');
+}
+
 console.log('claudecode ok');

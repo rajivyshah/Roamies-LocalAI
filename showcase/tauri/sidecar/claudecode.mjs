@@ -446,7 +446,9 @@ async function* claudeCodeLoop(messages, o) {
     }
   };
   const mapper = new SdkMessageMapper({ messages, takeResult: (id) => run.bridge.takeResult(id), onSessionId: o.onSessionId, onRateLimit: o.onRateLimit });
-  void begin(o.keepWarm ? takeSpare(o, o.resume) : null);
+  // A failure to even start (the SDK is missing, for one) comes back as the run's error, not as a silent hang.
+  // A failure to even start (the SDK is missing, for one) comes back as the run's error, not as a crash.
+  void begin(o.keepWarm ? takeSpare(o, o.resume) : null).catch((error) => channel.push({ kind: 'error', error }));
 
   let killTimer;
   const onAbort = () => {
