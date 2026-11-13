@@ -68,7 +68,9 @@ reminders, the onboarding — is Roamies as Ken Kai wrote it.
 
 The complete source of any BitJarvis build is public in this repository, and every published release
 carries a source archive of the exact commit it was built from
-(`BitJarvis_<version>_source.zip` next to the installer).
+(`BitJarvis_<version>_source.zip` next to the installer). The archive is the whole program — the
+shell, the sidecar, the web front end, this licence and these notices — not just the part that
+was built.
 
 | You want | Where |
 | --- | --- |

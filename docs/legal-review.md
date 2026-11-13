@@ -36,10 +36,29 @@ What we have in place:
   the source location, lists third-party components, and disclaims trademark affiliation.
 - **Every release archive is per-release.** `release-windows.yml` creates the archive from the exact
   release tag with `git archive`, so each zip is the precise build source, not the repo tip.
+- **The archive holds the whole program.** The archive is taken from the repository root, so it
+  carries the licence, the notices and the web front end, not just the shell and the sidecar. The
+  release fails if any of those is missing.
 - **THIRD_PARTY_NOTICES.md** maps every dependency to its licence.
 - **`@kenkaiiii/gg-*` (AGPL-3.0-only) is used intact.** We do not relicense any part of it.
 - **New features stay AGPL.** Anything added to the sidecar, shell, helpers, or web front end is
   licensed AGPL-3.0-only; there is no closed-source module.
+
+### A gap found and closed on 13 November 2026
+
+The archives attached to **0.1.36 and 0.1.37** were incomplete. The release workflow ran
+`git archive` from `showcase/tauri`, and `git archive` from a subdirectory archives only that
+subtree: those zips held the sidecar and the Tauri shell, and left out `LICENSE`, `NOTICE.md` (so
+Ken Kai's attribution did not travel with the source), the third-party notices and the whole web
+front end. That is short of the "complete corresponding source" AGPL §6 asks for.
+
+- The workflow now archives from the repository root and refuses to publish if the licence, the
+  notices or the web front end are not in the tree.
+- The archives of **0.1.36 and 0.1.37 have been replaced** with complete ones, taken from their
+  exact tags.
+- 0.1.35 was not affected: its archive was taken from the root and already held the licence and the
+  web front end. It predates `NOTICE.md`, which did not exist at that commit, so it carries no
+  notice file.
 
 Open question for counsel: the AGPL's network-use trigger — because BitJarvis is a desktop app, the
 network provisions are a minor concern, but if the updater or any component fetches modified source
