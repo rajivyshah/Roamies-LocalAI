@@ -3,7 +3,7 @@
 > This document is a **lay reading** of the licensing and trademark issues relevant to selling
 > BitJarvis, prepared for discussion with counsel. It is not legal advice.
 
-**Version:** 0.1.37  (as of the `fork-v0.1.37` release)
+**Applies to:** the 0.1.38 release and later — the ones with Anthropic's Claude Agent SDK unbundled.
 **Repository:** <https://github.com/rajivyshah/Roamies-LocalAI>
 **Licence of the distributed program:** GNU Affero General Public License v3.0 only (AGPL-3.0-only)
 
