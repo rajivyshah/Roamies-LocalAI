@@ -97,6 +97,12 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         run: ./build.sh release --target x86_64-pc-windows-msvc
 
+      # Anthropic's Claude Agent SDK must stay out of the shipped sidecar: it is proprietary, and the app
+      # only uses it when the user installs it themselves.
+      - name: Check the Claude Agent SDK stays out of the bundle
+        working-directory: showcase/tauri/sidecar
+        run: node test/unbundle.test.mjs
+
       - name: Publish the release and the update feed
         env:
           GH_TOKEN: ${{ github.token }}

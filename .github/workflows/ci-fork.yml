@@ -67,6 +67,12 @@ jobs:
       - name: Build
         run: ./build.sh dev
 
+      # Anthropic's Claude Agent SDK must stay out of the shipped sidecar: it is proprietary, and the app
+      # only uses it when the user installs it themselves. The bundle exists now, so the guard can look at it.
+      - name: Check the Claude Agent SDK stays out of the bundle
+        working-directory: showcase/tauri/sidecar
+        run: node test/unbundle.test.mjs
+
       - name: Test the app shell
         run: cargo test --locked --manifest-path src-tauri/Cargo.toml
 
